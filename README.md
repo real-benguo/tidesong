@@ -8,6 +8,12 @@
 
 你回到阔别十年的归潮岛。灯塔熄灭，黑潮上涨，祖父留在海上的最后一首歌正在被某种东西一点点吞掉。修好旧灯，驶过五座岛，钓起那些不该存在的鱼，然后决定这片海以后还要不要唱歌。
 
+## 在线版本
+
+**GitHub Pages：https://real-benguo.github.io/tidesong/**
+
+仓库：https://github.com/real-benguo/tidesong
+
 ## 开始游戏
 
 **Windows：双击 `启动游戏.bat`。**

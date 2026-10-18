@@ -17,6 +17,11 @@
   ],
   "author": "TIDESONG",
   "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://real-benguo.github.io/tidesong/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/real-benguo/tidesong.git"
+  },
   "dependencies": {
     "@fontsource-variable/noto-sans-sc": "^5.3.1",
     "@fontsource-variable/noto-serif-sc": "^5.3.1",
