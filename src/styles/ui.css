@@ -525,7 +525,7 @@ body.boss-active .cinematic-bars i { height: 4.5vh; }
 .dialogue-layer.echo .dialogue-head { justify-content: center; }
 
 /* ── modal shell ───────────────────────────────────────────────── */
-.modal-layer { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; pointer-events: auto; }
+.modal-layer { position: absolute; inset: 0; z-index: 100; display: grid; place-items: center; pointer-events: auto; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(3,10,12,.72); backdrop-filter: blur(10px); animation: fadeIn .3s ease; }
 @keyframes fadeIn { from { opacity: 0; } }
 .modal-shell { position: relative; z-index: 1; max-width: 94vw; max-height: 92vh; display: flex; }

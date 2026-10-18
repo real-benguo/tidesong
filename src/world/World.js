@@ -162,6 +162,7 @@ export class World {
     this.buildSmoke();
     this.buildBossSite();
     this.buildInteractables();
+    this.spawn = this.computeSpawn();
     this.buildFocusMarker();
     this.buildPlayerShadow();
     this.buildNPCs();

@@ -72,6 +72,10 @@ export class QuestSystem {
 
   async beginChapter({ playIntro = true } = {}) {
     const ch = this.chapter;
+    if (this.state.data.objective < 0 || this.state.data.objective >= ch.objectives.length) {
+      this.state.data.objective = Math.max(0, ch.objectives.length - 1);
+      this.state.save();
+    }
     this.uniqueSpecies = new Set(this.progress.unique || []);
     this.syncProgressFromCaught();
     this.ui.setChapter(ch);
@@ -208,7 +212,13 @@ export class QuestSystem {
     }
     if (obj.scene && !this.state.data.scenesSeen[`done_${obj.id}`]) {
       this.state.data.scenesSeen[`done_${obj.id}`] = true;
-      await this.ui.playDialogue(obj.scene, { cinematic: obj.type === 'boss' || obj.id.includes('outro') });
+      try {
+        await this.ui.playDialogue(obj.scene, { cinematic: obj.type === 'boss' || obj.id.includes('outro') });
+      } catch (err) {
+        // A portrait or audio failure must never leave the quest permanently locked.
+        console.error('[TIDESONG] quest scene failed', err);
+        this.ui.finishDialogue?.();
+      }
     } else {
       await new Promise((r) => setTimeout(r, 650));
     }

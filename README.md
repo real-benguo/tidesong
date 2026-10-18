@@ -12,6 +12,8 @@
 
 **GitHub Pages：https://real-benguo.github.io/tidesong/**
 
+> v1.1：修复标题页设置/制作名单被标题层覆盖而无法点击的问题；补强任务场景异常恢复、岛屿码头登陆台与峭壁光照；交互物品现在会在准星对准时柔和提亮。
+
 仓库：https://github.com/real-benguo/tidesong
 
 ## 开始游戏
