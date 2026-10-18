@@ -1,0 +1,30 @@
+{
+  "name": "tidesong",
+  "version": "1.0.0",
+  "description": "潮汐遗歌 TIDESONG — 一段关于潮声、旧灯与归途的 3D 钓鱼冒险",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "start": "node server.mjs"
+  },
+  "keywords": [
+    "threejs",
+    "fishing",
+    "game",
+    "webgl"
+  ],
+  "author": "TIDESONG",
+  "license": "SEE LICENSE IN LICENSE",
+  "dependencies": {
+    "@fontsource-variable/noto-sans-sc": "^5.3.1",
+    "@fontsource-variable/noto-serif-sc": "^5.3.1",
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "simplex-noise": "^4.0.3",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.5"
+  }
+}
