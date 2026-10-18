@@ -9,6 +9,7 @@ export class IslandShape {
     this.noise2 = createNoise2D(mulberry32(config.seed + 997));
     this.r = config.radius;
     this.profile = config.terrain.profile;
+    this.dockAngle = config.dockAngle || 0;
     this.half = 230;
   }
 
@@ -75,14 +76,24 @@ export class IslandShape {
       h += n2 * 0.28 * ring;
       h -= smoothstep(0.5, 0.95, this.fbm(x * 0.02 - 3, z * 0.02 + 12, 3)) * 1.4 * ring;
       h += smoothstep(0.9, 0.78, r) * 0.5;
+      // Cut a small landing notch at the pier so the dune does not swallow it.
+      const ca = this.dockAngle;
+      const notchX = Math.sin(ca) * 0.93;
+      const notchZ = Math.cos(ca) * 0.93;
+      const notch = Math.exp(-(((nx - notchX) / 0.18) ** 2) - (((nz - notchZ) / 0.22) ** 2));
+      h -= notch * 2.1 * ring;
     } else if (this.profile === 'cliff') {
       const plateau = maxH * Math.pow(smoothstep(1.0, 0.57, r), 1.18);
       h = -3.0 + land * (3.0 + plateau);
       h += land * n1 * terrain.hills * (0.4 + 0.6 * clamp(1 - r));
       h += land * n2 * 0.75;
-      // A storm-cut cove makes room for the dock and boatyard.
-      const cove = Math.exp(-((nx / 0.26) ** 2) - (((nz - 0.62) / 0.31) ** 2));
-      h -= cove * maxH * 0.62;
+      // A storm-cut cove aligned with the pier makes room for the dock and
+      // keeps the first-person view out of the cliff face.
+      const ca = this.dockAngle;
+      const coveX = Math.sin(ca) * 0.84;
+      const coveZ = Math.cos(ca) * 0.84;
+      const cove = Math.exp(-(((nx - coveX) / 0.27) ** 2) - (((nz - coveZ) / 0.32) ** 2));
+      h -= cove * maxH * 0.66;
       // A diagonal shelf leads up to the old signal cliff.
       const shelf = Math.exp(-(((nx - nz * 0.55 + 0.05) / 0.18) ** 2)) * smoothstep(0.2, 0.9, r);
       h += shelf * maxH * 0.22;
@@ -95,6 +106,12 @@ export class IslandShape {
       // Basalt ridges radiate from the caldera.
       const ridge = Math.abs(Math.sin(Math.atan2(nz, nx) * 5.0 + 0.3));
       h += ridge * 2.4 * land * smoothstep(0.2, 0.7, r);
+      // Carve a landing shelf into the basalt where the pier meets the island.
+      const ca = this.dockAngle;
+      const coveX = Math.sin(ca) * 0.88;
+      const coveZ = Math.cos(ca) * 0.88;
+      const cove = Math.exp(-(((nx - coveX) / 0.25) ** 2) - (((nz - coveZ) / 0.3) ** 2));
+      h -= cove * maxH * 0.34 * land;
     }
 
     // Offshore floor falls away into deep water.

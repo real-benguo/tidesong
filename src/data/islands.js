@@ -100,7 +100,7 @@ export const ISLANDS = {
     },
     weather: 'storm',
     palette: {
-      grass: '#5e7452', grassDry: '#8c8660', sand: '#b9b29f', rock: '#656c6b',
+      grass: '#6b8160', grassDry: '#9a946e', sand: '#c8c0ad', rock: '#7b8382',
       leaf: '#40533e', leaf2: '#64734e', bark: '#494236', accent: '#8eb8da',
     },
     vegetation: { palms: 0, shrubs: 48, grass: 26000, trees: 12, rocks: 45, fireflies: 0, ash: 0 },
@@ -131,7 +131,7 @@ export const ISLANDS = {
     },
     weather: 'ash',
     palette: {
-      grass: '#4c4d3e', grassDry: '#76634b', sand: '#8e7c6e', rock: '#2e2d2c',
+      grass: '#6a6652', grassDry: '#9d8463', sand: '#b09a84', rock: '#5a524c',
       leaf: '#3a4436', leaf2: '#5a6046', bark: '#3c332d', accent: '#ff9166',
     },
     vegetation: { palms: 0, shrubs: 22, grass: 8000, trees: 0, rocks: 60, fireflies: 0, ash: 500 },

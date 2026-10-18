@@ -134,8 +134,14 @@ export class World {
     this.group.add(this.props.group);
     onProgress?.('搭起木屋', 0.6);
 
-    this.trailPath2D = TRAIL_PATHS[this.island.id] || TRAIL_PATHS.hub;
+    this.trailPath2D = (TRAIL_PATHS[this.island.id] || TRAIL_PATHS.hub).map((p) => [...p]);
     this.buildDock();
+    // The shoreline can move when an island has a carved pier cove; keep the
+    // trail rooted on the actual beach instead of the old hard-coded point.
+    this.trailPath2D[0] = [
+      Math.sin(this.island.dockAngle) * (this.dock.shore - 3),
+      Math.cos(this.island.dockAngle) * (this.dock.shore - 3),
+    ];
     this.buildLayout();
     this.vegetation = new Vegetation({
       scene: this.group, config: this.island, shape: this.shape, assets: this.assets, quality: this.quality,
@@ -241,7 +247,9 @@ export class World {
   computeSpawn() {
     const a = this.island.dockAngle;
     const dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
-    const end = this.dock.shore + 7.0;
+    // The home island keeps a close framing; the outer islands start further
+    // along the pier so steep cliffs and dunes do not fill the first view.
+    const end = this.dock.shore + (this.island.id === 'hub' ? 8.5 : this.island.dockLength - 2.5);
     const x = dir.x * end;
     const z = dir.z * end;
     const firstNpc = Object.values(this.island.npcs || {})[0];
@@ -407,6 +415,9 @@ export class World {
 
   buildTrailDressing() {
     const id = this.island.id;
+    // Steep basalt/cliff paths look better as bare trails; railings would climb
+    // the rock face at impossible angles.
+    if (id === 'cliffs' || id === 'volcano') return;
     const paths = this.trailPath2D || [];
     if (!paths.length) return;
     const curve = new THREE.CatmullRomCurve3(paths.map(([x, z]) => new THREE.Vector3(x, this.shape.height(x, z) + 0.1, z)));

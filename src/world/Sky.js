@@ -124,7 +124,8 @@ export class SkySystem {
       Math.cos(el) * Math.cos(az)
     ).normalize();
 
-    const hemi = new THREE.HemisphereLight(new THREE.Color(s.ambient), new THREE.Color(this.config.palette.rock), 1.0);
+    const darkIsland = this.config.id === 'volcano' || this.config.id === 'cliffs';
+    const hemi = new THREE.HemisphereLight(new THREE.Color(s.ambient), new THREE.Color(this.config.palette.rock), darkIsland ? 1.5 : 1.0);
     hemi.position.set(0, 80, 0);
     this.group.add(hemi);
     this.hemi = hemi;
@@ -147,7 +148,9 @@ export class SkySystem {
     this.group.add(dir.target);
     this.sun = dir;
 
-    const fill = new THREE.DirectionalLight(new THREE.Color(this.config.water.shallow), 0.42);
+    const fillColor = this.config.id === 'volcano' ? this.config.sun.color : this.config.water.shallow;
+    const fillPower = this.config.id === 'volcano' ? 1.15 : this.config.id === 'cliffs' ? 1.0 : this.config.id === 'mangrove' ? 0.52 : 0.42;
+    const fill = new THREE.DirectionalLight(new THREE.Color(fillColor), fillPower);
     fill.position.set(-70, 45, 90);
     this.group.add(fill);
     this.fill = fill;
