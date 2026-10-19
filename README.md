@@ -6,6 +6,8 @@
 
 ![归潮岛 · 实机画面](screenshots/high_detail_final.png)
 
+![渔船与码头](screenshots/dock_latest.png)
+
 ![潮斗 · 1v1](screenshots/duel.png)
 
 你回到阔别十年的归潮岛。灯塔熄灭，黑潮上涨，祖父留在海上的最后一首歌正在被某种东西一点点吞掉。修好旧灯，驶过五座岛，钓起那些不该存在的鱼，然后决定这片海以后还要不要唱歌。
