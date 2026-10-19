@@ -27,6 +27,7 @@ export class Game {
     this.profiles = new ProfileStore();
     this.state = new GameState({ saveKey: this.profiles.saveKey });
     this.mode = 'boot';
+    this.sessionActive = false;
     this.time = 0;
     this.shake = 0;
     this.saveTimer = 0;
@@ -301,6 +302,7 @@ export class Game {
     this.state.data.chapter = 1;
     this.state.data.objective = 0;
     this.state.save();
+    this.sessionActive = true;
     this.ui.hideTitle();
     this.world.island = null;
     await this.enterChapter(1, { showCard: true, first: true });
@@ -310,6 +312,7 @@ export class Game {
     if (!this.state.hasSave()) return;
     await this.ensureAudio();
     this.state.load();
+    this.sessionActive = true;
     this.ui.hideTitle();
     this.world.island = null;
     await this.enterChapter(this.state.data.chapter, { showCard: false, resume: true });
@@ -423,6 +426,7 @@ export class Game {
 
   async quitToTitle(reset = false, saveFirst = true) {
     if (saveFirst) this.save();
+    this.sessionActive = false;
     this.fishing.reset();
     this.player.setFrozen(true);
     this.player.enabled = false;
@@ -450,7 +454,7 @@ export class Game {
   save() {
     // The title uses a fresh in-memory state; never let a profile switch or a
     // title-screen autosave overwrite an existing profile with defaults.
-    if (this.mode === 'title' || this.mode === 'boot') return;
+    if (!this.sessionActive || this.mode === 'title' || this.mode === 'boot') return;
     this.state.save();
   }
 
