@@ -79,6 +79,7 @@ export class Fishing {
     this.scene.add(this.line);
     this.pendingCatch = null;
     this.lastReelTick = 0;
+    this.hotspot = null;
   }
 
   get isActive() {
@@ -147,6 +148,11 @@ export class Fishing {
       return;
     }
     this.target.set(tx, 0.08, tz);
+    this.hotspot = this.game.world.nearestFishingSpot?.(tx, tz, 4.8) || null;
+    if (this.hotspot) {
+      this.ui.toast('潮光鱼群 · 稀有鱼概率提升', 'success');
+      this.audio?.play('shimmer');
+    }
     this.castOrigin.copy(this.player.rod.getTipWorld());
     this.mode = STATE.CASTING;
     this.castTime = 0;
@@ -160,7 +166,7 @@ export class Fishing {
       island: this.game.world.island.id,
       bait,
       caught: this.state.data.catches,
-      rareBoost: stats.rareBonus,
+      rareBoost: stats.rareBonus + (this.hotspot ? 0.35 : 0),
     });
     if (this.species) {
       this.questBias(bait);
@@ -508,6 +514,7 @@ export class Fishing {
 
   reset() {
     this.mode = STATE.IDLE;
+    this.hotspot = null;
     this.bobber.visible = false;
     this.line.visible = false;
     this.charge = 0;

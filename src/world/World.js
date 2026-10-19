@@ -165,6 +165,7 @@ export class World {
     this.spawn = this.computeSpawn();
     this.buildFocusMarker();
     this.buildPlayerShadow();
+    this.buildFishingSpots();
     this.buildNPCs();
     this.buildAmbientLife();
     this.buildSeaStacks();
@@ -955,6 +956,45 @@ export class World {
     f.pulse = Math.random() * 6;
   }
 
+  buildFishingSpots() {
+    this.fishingSpots = [];
+    if (!this.dock) return;
+    const accent = this.island.palette?.accent || '#8fe3b8';
+    for (let i = 0; i < 3; i++) {
+      const angle = this.island.dockAngle + (i - 1) * 0.24;
+      const dist = this.dock.shore + 12 + i * 5;
+      const x = Math.sin(angle) * dist;
+      const z = Math.cos(angle) * dist;
+      if (this.shape.height(x, z) > -0.45) continue;
+      const g = new THREE.Group();
+      g.position.set(x, 0.07, z);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(accent), transparent: true, opacity: 0.35,
+        side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.92, 1.15, 40), ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      g.add(ring);
+      const glow = makeGlowSprite(accent, 2.4);
+      glow.position.y = 0.25;
+      glow.material.opacity = 0.22;
+      g.add(glow);
+      g.userData = { phase: i * 1.7, ring, glow };
+      this.group.add(g);
+      this.fishingSpots.push(g);
+    }
+  }
+
+  nearestFishingSpot(x, z, radius = 5) {
+    let best = null;
+    let bestD = radius;
+    for (const s of this.fishingSpots || []) {
+      const d = Math.hypot(x - s.position.x, z - s.position.z);
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    return best;
+  }
+
   buildNPCs() {
     for (const [id, pos] of Object.entries(this.island.npcs)) {
       const def = NPCS[id];
@@ -1175,6 +1215,14 @@ export class World {
       c.userData.ring.rotation.z += dt * 0.4;
       c.rotation.y += dt * 0.15;
       c.position.y = c.userData.baseY + Math.sin(t * 1.3 + c.position.x) * 0.06;
+    }
+    for (const s of this.fishingSpots || []) {
+      s.userData.phase += dt;
+      s.userData.ring.rotation.z += dt * 0.22;
+      const pulse = 1 + Math.sin(t * 1.1 + s.userData.phase) * 0.08;
+      s.userData.ring.scale.setScalar(pulse);
+      s.userData.ring.material.opacity = 0.22 + Math.sin(t * 1.3 + s.userData.phase) * 0.1;
+      s.userData.glow.material.opacity = 0.16 + Math.sin(t * 1.2 + s.userData.phase) * 0.06;
     }
     if (this.focusMarker?.target) {
       const f = this.focusMarker;
