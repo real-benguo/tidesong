@@ -8,7 +8,7 @@ const FinalShader = {
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
-    uExposure: { value: 0.86 },
+    uExposure: { value: 0.97 },
     uVignette: { value: 0.28 },
     uGrain: { value: 0.024 },
     uSaturation: { value: 1.12 },

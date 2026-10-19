@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AssetManager } from './Assets.js';
 import { GameState } from './state.js';
+import { ProfileStore } from './Profiles.js';
 import { Input } from './Input.js';
 import { PostFX } from './PostFX.js';
 import { UI } from '../ui/UI.js';
@@ -23,7 +24,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
-    this.state = new GameState();
+    this.profiles = new ProfileStore();
+    this.state = new GameState({ saveKey: this.profiles.saveKey });
     this.mode = 'boot';
     this.time = 0;
     this.shake = 0;
@@ -446,7 +448,93 @@ export class Game {
   }
 
   save() {
+    // The title uses a fresh in-memory state; never let a profile switch or a
+    // title-screen autosave overwrite an existing profile with defaults.
+    if (this.mode === 'title' || this.mode === 'boot') return;
     this.state.save();
+  }
+
+  clearSave() {
+    this.state.clearSave();
+    this.profiles.clearCurrentSave();
+  }
+
+  switchProfile(id) {
+    if (id === this.profiles.activeId) return;
+    this.save();
+    if (!this.profiles.activate(id)) {
+      this.ui.toast('没有找到这个本地账号。', 'warn');
+      return;
+    }
+    this.ui.toast('正在切换本地账号……', 'muted');
+    setTimeout(() => location.reload(), 260);
+  }
+
+  createProfile(name, pin) {
+    this.save();
+    const result = this.profiles.create(name, pin, { copyFromKey: this.state.saveKey });
+    if (result.error) {
+      this.ui.toast(result.error, 'warn');
+      return false;
+    }
+    this.ui.toast(`本地账号「${result.profile.name}」已创建。`, 'success');
+    setTimeout(() => location.reload(), 420);
+    return true;
+  }
+
+  loginProfile(name, pin) {
+    this.save();
+    const result = this.profiles.login(name, pin);
+    if (result.error) {
+      this.ui.toast(result.error, 'warn');
+      return false;
+    }
+    this.ui.toast(`欢迎回来，${result.profile.name}。`, 'success');
+    setTimeout(() => location.reload(), 420);
+    return true;
+  }
+
+  exportSave() {
+    try {
+      let source = this.state.data;
+      if (this.mode === 'title' || this.mode === 'boot') {
+        try {
+          const raw = localStorage.getItem(this.state.saveKey);
+          if (raw) source = JSON.parse(raw);
+        } catch (e) { /* fall back to the in-memory default */ }
+      }
+      const payload = {
+        ...source,
+        _profile: this.profiles.active?.name || '归潮者',
+        _exportedAt: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      const safeName = (this.profiles.active?.name || 'guest').replace(/[^\w\u4e00-\u9fa5-]+/g, '_');
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = URL.createObjectURL(blob);
+      a.download = `tidesong-${safeName}-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      this.ui.toast('存档文件已导出。', 'success');
+    } catch (e) {
+      this.ui.toast('导出失败，请检查浏览器权限。', 'warn');
+    }
+  }
+
+  importSave(text) {
+    try {
+      const parsed = JSON.parse(text);
+      this.state.importData(parsed);
+      this.ui.toast('存档已导入，正在回到潮声里……', 'success');
+      setTimeout(() => location.reload(), 480);
+      return true;
+    } catch (e) {
+      this.ui.toast('存档文件无法读取。', 'warn');
+      return false;
+    }
   }
 
   buyBait(id, qty = 1) {
@@ -614,6 +702,7 @@ export class Game {
       this.ui.update(dt);
       const target = this.quest.getTargetPosition();
       if (target) this.ui.setObjectiveMarker(target);
+      this.ui.updateQuestDistance(this.player.position, target, this.quest.getTargetLabel());
       if (this.mode === 'play' || this.mode === 'boss') {
         this.ui.updateCompass(this.player.yaw, this.player.position, target);
       }

@@ -384,6 +384,9 @@ export class PropBuilder {
     const stone = this.materials.stoneWall;
     const white = this.materials.paint;
     const red = this.materials.paintRed;
+    // Sink a wide plinth into the hillside so the lighthouse can never appear
+    // to float on a slope.
+    g.add(cyl(3.5, 4.35, 2.8, stone, 0, -0.65, 0, 48));
     g.add(cyl(2.7, 3.25, 0.8, stone, 0, 0.4, 0, 40));
     g.add(cyl(2.25, 2.8, 1.0, stone, 0, 1.3, 0, 40));
     // Rough masonry courses break up the foundation silhouette.
@@ -427,12 +430,16 @@ export class PropBuilder {
     g.add(cyl(2.55, 2.7, 0.24, this.materials.iron, 0, 13.15, 0, 32));
     for (let i = 0; i < 20; i++) {
       const a = (i / 20) * Math.PI * 2;
-      g.add(cyl(0.035, 0.035, 0.85, this.materials.brass, Math.sin(a) * 2.42, 13.66, Math.cos(a) * 2.42, 5));
+      g.add(cyl(0.055, 0.055, 0.9, this.materials.brass, Math.sin(a) * 2.42, 13.68, Math.cos(a) * 2.42, 5));
     }
-    const rail = new THREE.Mesh(new THREE.TorusGeometry(2.42, 0.035, 5, 64), this.materials.brass);
+    const rail = new THREE.Mesh(new THREE.TorusGeometry(2.42, 0.055, 6, 64), this.materials.brass);
     rail.rotation.x = Math.PI / 2;
-    rail.position.y = 14.08;
+    rail.position.y = 14.1;
     g.add(rail);
+    const midRail = rail.clone();
+    midRail.position.y = 13.7;
+    midRail.scale.setScalar(0.995);
+    g.add(midRail);
     // Lantern room.
     const glassRoom = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.45, 1.9, 16, 1, true), this.materials.glass);
     glassRoom.position.y = 14.45;
@@ -478,10 +485,30 @@ export class PropBuilder {
     this.beamGroup.visible = false;
     this.beamGroup.userData.noMerge = true;
     g.add(this.beamGroup);
-    // Path lanterns.
+    // A low iron rail rings the stone platform, with a gap at the seaward door.
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      if (Math.cos(a) > 0.82 && Math.abs(Math.sin(a)) < 0.45) continue;
+      const r = 3.02;
+      g.add(cyl(0.045, 0.055, 0.95, this.materials.iron, Math.sin(a) * r, 1.95, Math.cos(a) * r, 6));
+    }
+    for (const y of [1.72, 2.32]) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(3.02, 0.045, 5, 64), this.materials.iron);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = y;
+      g.add(ring);
+    }
+    // Path lanterns with an iron cage, cap and base.
     for (const [x, z] of [[3.2, 2.6], [-3.5, 2.2], [2.7, -2.4]]) {
       g.add(rounded(0.24, 0.45, 0.24, 0.03, this.materials.lanternGlass, x, 1.2, z));
       g.add(cyl(0.03, 0.05, 1.0, this.materials.iron, x, 0.55, z, 6));
+      g.add(cyl(0.19, 0.22, 0.08, this.materials.iron, x, 1.43, z, 8));
+      for (const [ox, oz] of [[-0.13, -0.13], [0.13, -0.13], [-0.13, 0.13], [0.13, 0.13]]) {
+        g.add(cyl(0.018, 0.018, 0.48, this.materials.iron, x + ox, 1.2, z + oz, 5));
+      }
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.16, 8), this.materials.iron);
+      cap.position.set(x, 1.52, z);
+      g.add(cap);
     }
     return g;
   }

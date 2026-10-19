@@ -130,6 +130,18 @@ export class QuestSystem {
     }
   }
 
+  getTargetLabel() {
+    const obj = this.objective;
+    if (!obj) return '';
+    if (obj.type === 'collect') return ITEMS[obj.item]?.name || '采集物';
+    if (obj.type === 'talk') return NPCS[obj.target]?.name || '旅人';
+    if (obj.type === 'boss') return this.world?.island?.boss?.label || '潮主';
+    if (obj.type === 'travel') return '码头';
+    if (obj.type === 'catch' || obj.type === 'catchUnique') return '钓点';
+    if (obj.type === 'interact') return this.world?.interactables.find((i) => i.id === obj.target)?.label || '目标';
+    return '目标';
+  }
+
   getTargetPosition() {
     const obj = this.objective;
     if (!obj || !this.world) return null;

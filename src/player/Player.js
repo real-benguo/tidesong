@@ -22,6 +22,10 @@ export class Player {
     this.walkSpeed = 5.0;
     this.runSpeed = 8.6;
     this.rod = new RodView({ camera });
+    // Gentle eye-level fill so shaded coves and cliff paths remain readable.
+    this.cameraFill = new THREE.PointLight(new THREE.Color('#ffd6a8'), 4.2, 20, 2);
+    this.cameraFill.position.set(0, 0, 0);
+    this.camera.add(this.cameraFill);
     this.rodTier = 0;
     this.forward = new THREE.Vector3(0, 0, -1);
     this.currentTarget = null;

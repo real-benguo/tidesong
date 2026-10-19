@@ -340,7 +340,7 @@ export class World {
       }
       this.props.addCollider(-16, 46, 5.2);
       this.props.addCollider(12, 55, 3.8);
-      this.props.addCollider(26, -18, 3.6);
+      this.props.addCollider(26, -18, 4.35);
     } else if (id === 'mangrove') {
       const hut = p.buildStiltHut();
       put(hut, 11, 57, { rot: 0.1, name: 'stiltHut' });
@@ -447,7 +447,7 @@ export class World {
             const a = new THREE.Vector3(prev.x, prev.h + yy, prev.z);
             const b = new THREE.Vector3(q.x, h + yy, q.z);
             const dir = new THREE.Vector3().subVectors(b, a);
-            const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, dir.length(), 5), railMat);
+            const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, dir.length(), 6), railMat);
             rail.position.copy(a).addScaledVector(dir, 0.5);
             rail.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
             this.props.group.add(rail);
@@ -1105,22 +1105,30 @@ export class World {
     }
     this.markers = [];
     if (!objective) return;
-    const addMarker = (pos, color = '#f1c677', size = 1.4) => {
+    const addMarker = (pos, color = '#f1c677', size = 1.4, height = 8, through = false) => {
       const g = new THREE.Group();
       g.position.copy(pos);
-      const diamondMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-      const diamond = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 0), diamondMat);
-      diamond.position.y = 3.4;
+      const diamondY = height > 16 ? 5.4 : 3.4;
+      const diamondMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color), transparent: true, opacity: 0.95,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: !through,
+      });
+      const diamond = new THREE.Mesh(new THREE.OctahedronGeometry(0.38, 0), diamondMat);
+      diamond.position.y = diamondY;
+      diamond.renderOrder = through ? 90 : 0;
       g.add(diamond);
-      const glow = makeGlowSprite(color, size * 1.5);
-      glow.position.y = 3.4;
+      const glow = makeGlowSprite(color, size * 1.65);
+      glow.position.y = diamondY;
+      glow.material.depthTest = !through;
+      glow.renderOrder = through ? 89 : 0;
       g.add(glow);
       const beamMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(color), transparent: true, opacity: 0.13,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+        color: new THREE.Color(color), transparent: true, opacity: through ? 0.15 : 0.12,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: !through, side: THREE.DoubleSide,
       });
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.2, 8, 8, 1, true), beamMat);
-      beam.position.y = 4;
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(through ? 0.07 : 0.06, through ? 0.22 : 0.2, height, 8, 1, true), beamMat);
+      beam.position.y = height / 2;
+      beam.renderOrder = through ? 88 : 0;
       g.add(beam);
       const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 0.92, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
       ring.rotation.x = -Math.PI / 2;
@@ -1132,20 +1140,22 @@ export class World {
     };
     if (objective.type === 'talk' || objective.type === 'shop') {
       const it = this.interactables.find((i) => i.id === objective.target);
-      if (it) addMarker(it.pos);
+      if (it) addMarker(it.pos, '#f1c677', 1.4, 12, false);
     } else if (objective.type === 'collect') {
       for (const c of this.allCollectibles) {
-        if (c.userData.item.item === objective.item && !c.userData.collected) addMarker(c.position, '#9fe8c9', 1.2);
+        if (c.userData.item.item === objective.item && !c.userData.collected) {
+          addMarker(c.position, '#9fe8c9', 1.6, 26, true);
+        }
       }
     } else if (objective.type === 'interact') {
       const it = this.interactables.find((i) => i.id === objective.target);
-      if (it) addMarker(it.pos, '#f0d19a', 1.4);
+      if (it) addMarker(it.pos, '#f0d19a', 1.6, 14, false);
     } else if (objective.type === 'boss') {
-      addMarker(this.bossPosition.clone().setY(0.2), '#ffb56e', 3.2);
+      addMarker(this.bossPosition.clone().setY(0.2), '#ffb56e', 3.2, 18, false);
     } else if (objective.type === 'travel') {
-      addMarker(this.boatPosition.clone(), '#f0d19a', 2.0);
+      addMarker(this.boatPosition.clone(), '#f0d19a', 2.2, 22, true);
     } else if (objective.type === 'catch' || objective.type === 'catchUnique') {
-      addMarker(this.waterMarker.clone(), '#a9e5dd', 1.5);
+      addMarker(this.waterMarker.clone(), '#a9e5dd', 1.8, 20, true);
     }
   }
 

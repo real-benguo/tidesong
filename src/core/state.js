@@ -45,11 +45,16 @@ const DEFAULT_STATE = () => ({
 });
 
 export class GameState {
-  constructor() {
+  constructor({ saveKey = SAVE_KEY } = {}) {
+    this.saveKey = saveKey;
     this.data = DEFAULT_STATE();
     this.settings = { ...DEFAULT_SETTINGS };
     this.listeners = new Set();
     this.loadSettings();
+  }
+
+  setSaveKey(key) {
+    this.saveKey = key || SAVE_KEY;
   }
 
   on(fn) {
@@ -69,7 +74,7 @@ export class GameState {
 
   clearSave() {
     try {
-      localStorage.removeItem(SAVE_KEY);
+      localStorage.removeItem(this.saveKey);
     } catch (e) {
       /* ignore */
     }
@@ -206,15 +211,29 @@ export class GameState {
 
   save() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(this.data));
+      localStorage.setItem(this.saveKey, JSON.stringify(this.data));
     } catch (e) {
       console.warn('Save failed', e);
     }
   }
 
+  importData(parsed) {
+    if (!parsed || typeof parsed !== 'object') throw new Error('Invalid save data');
+    const chapter = Number(parsed.chapter);
+    if (!Number.isFinite(chapter) || chapter < 1 || chapter > CHAPTERS.length) {
+      throw new Error('Invalid chapter in save data');
+    }
+    this.data = { ...DEFAULT_STATE(), ...parsed };
+    this.data.equipment = { ...DEFAULT_STATE().equipment, ...(parsed.equipment || {}) };
+    this.data.stats = { ...DEFAULT_STATE().stats, ...(parsed.stats || {}) };
+    this.data.claimedLevel = this.data.claimedLevel || levelFromXp(this.data.totalXp).level;
+    this.save();
+    return true;
+  }
+
   load() {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(this.saveKey);
       if (!raw) return false;
       const parsed = JSON.parse(raw);
       this.data = { ...DEFAULT_STATE(), ...parsed };
@@ -229,7 +248,11 @@ export class GameState {
   }
 
   hasSave() {
-    return !!localStorage.getItem(SAVE_KEY);
+    try {
+      return !!localStorage.getItem(this.saveKey);
+    } catch (e) {
+      return false;
+    }
   }
 
   saveSettings() {

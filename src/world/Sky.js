@@ -125,10 +125,15 @@ export class SkySystem {
     ).normalize();
 
     const darkIsland = this.config.id === 'volcano' || this.config.id === 'cliffs';
-    const hemi = new THREE.HemisphereLight(new THREE.Color(s.ambient), new THREE.Color(this.config.palette.rock), darkIsland ? 1.5 : 1.0);
+    const hemi = new THREE.HemisphereLight(new THREE.Color(s.ambient), new THREE.Color(this.config.palette.rock), darkIsland ? 1.6 : 1.25);
     hemi.position.set(0, 80, 0);
     this.group.add(hemi);
     this.hemi = hemi;
+    // A small uniform floor prevents shaded coves from going pitch black
+    // while keeping the directional sunset contrast.
+    const ambient = new THREE.AmbientLight(new THREE.Color(s.ambient), darkIsland ? 0.34 : 0.24);
+    this.group.add(ambient);
+    this.ambient = ambient;
 
     const dir = new THREE.DirectionalLight(new THREE.Color(s.color), s.intensity);
     dir.position.copy(this.sunDir).multiplyScalar(130);

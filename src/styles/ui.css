@@ -265,6 +265,8 @@ body.boss-active .boss-ui { opacity: 1; }
 .quest-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 8px; letter-spacing: .3em; color: rgba(217,181,116,.8); text-transform: uppercase; }
 .quest-eyebrow i { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 7px var(--gold); }
 .quest-text { margin-top: 8px; font-family: var(--serif); font-size: 13.5px; line-height: 1.75; color: rgba(239,228,201,.88); letter-spacing: .04em; }
+.quest-distance { margin-top: 7px; display: flex; align-items: center; gap: 7px; font-size: 9px; letter-spacing: .12em; color: rgba(143,227,186,.88); }
+.quest-distance i { width: 5px; height: 5px; border: 1px solid currentColor; transform: rotate(45deg); box-shadow: 0 0 8px rgba(143,227,186,.55); }
 .quest-progress { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
 .quest-progress span { font-family: var(--display); font-size: 11px; color: var(--gold); min-width: 36px; }
 .quest-progress > div { flex: 1; height: 2px; background: rgba(239,228,201,.12); }
@@ -730,7 +732,10 @@ body.boss-active .cinematic-bars i { height: 4.5vh; }
 .map-node text { font-family: var(--serif); }
 .map-node.locked { opacity: .55; }
 .map-node.current circle:nth-of-type(2) { filter: drop-shadow(0 0 8px #e9c27b); }
-.map-caption { border-top: 1px solid var(--line-soft); padding-top: 14px; font-size: 9px; letter-spacing: .1em; color: var(--muted); }
+.map-objective { margin-top: 15px; padding: 11px 13px; border-left: 1px solid rgba(143,227,186,.5); background: rgba(20,45,43,.4); font-family: var(--serif); font-size: 11px; line-height: 1.7; color: rgba(239,228,201,.75); }
+.map-objective span { display: block; margin-bottom: 3px; font-family: var(--sans); font-size: 8px; letter-spacing: .22em; color: var(--safe); }
+.map-objective b { color: var(--gold-2); font-weight: 400; }
+.map-caption { border-top: 1px solid var(--line-soft); padding-top: 14px; margin-top: 14px; font-size: 9px; letter-spacing: .1em; color: var(--muted); }
 
 /* ── fish detail ───────────────────────────────────────────────── */
 .modal-content.fish-detail { width: min(800px, 92vw); }
@@ -767,6 +772,25 @@ body.boss-active .cinematic-bars i { height: 4.5vh; }
 .toggle.on i::after { left: 19px; background: var(--gold); }
 .settings-note { margin-top: 20px; font-size: 8px; line-height: 1.8; color: rgba(239,228,201,.25); }
 .settings-close { display: flex; justify-content: flex-end; margin-top: 20px; }
+.account-modal { padding: 34px 36px 28px; }
+.account-modal h2 { margin: 8px 0 5px; font-family: var(--serif); font-weight: 500; font-size: 32px; letter-spacing: .14em; }
+.account-modal > p { margin: 0 0 16px; font-size: 10px; line-height: 1.8; color: var(--muted); }
+.account-current { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(143,227,186,.07); border-left: 1px solid rgba(143,227,186,.45); }
+.account-current span { font-size: 8px; letter-spacing: .2em; color: var(--safe); }
+.account-current b { font-family: var(--serif); font-size: 17px; color: var(--gold-2); }
+.account-current small { margin-left: auto; font-size: 8px; color: var(--muted); }
+.account-list { max-height: 180px; overflow: auto; margin: 12px 0; border-top: 1px solid var(--line-soft); }
+.account-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 2px; border-bottom: 1px solid rgba(239,228,201,.06); }
+.account-row.current { opacity: .82; }
+.account-row b { display: block; font-family: var(--serif); font-size: 13px; color: var(--cream-2); }
+.account-row span { display: block; margin-top: 3px; font-size: 8px; color: var(--muted); letter-spacing: .06em; }
+.account-row em { font-size: 8px; font-style: normal; letter-spacing: .18em; color: var(--safe); }
+.account-form { display: grid; gap: 8px; margin-top: 14px; }
+.account-form input { width: 100%; padding: 10px 12px; background: rgba(3,12,14,.6); border: 1px solid var(--line-soft); color: var(--cream-2); font-size: 12px; }
+.account-form input:focus { outline: none; border-color: rgba(217,181,116,.55); }
+.account-form-actions, .account-transfer { display: flex; gap: 8px; flex-wrap: wrap; }
+.account-transfer { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.account-note { margin-top: 14px; font-size: 9px; line-height: 1.8; color: rgba(239,228,201,.34); }
 
 .pause-modal { padding: 45px 46px 32px; text-align: center; }
 .pause-mark { width: 50px; height: 50px; border: 1px solid rgba(217,181,116,.4); border-radius: 50%; display: grid; place-items: center; margin: 0 auto 20px; font-family: var(--serif); color: var(--gold); }

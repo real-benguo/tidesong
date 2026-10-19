@@ -89,10 +89,12 @@ export class UI {
             <button class="title-btn" data-title="continue"><span>继续旅程</span><small>CONTINUE</small></button>
             <button class="title-btn small" data-title="settings">设置</button>
             <button class="title-btn small" data-fullscreen title="全屏（F11）">全屏</button>
+            <button class="title-btn small" data-title="account">账号</button>
             <button class="title-btn small" data-title="credits">制作名单</button>
           </div>
           <div class="title-foot">
             <span>建议佩戴耳机 · 使用鼠标与键盘</span>
+            <span id="title-profile">归潮者 · 本地存档</span>
             <span>© 2026 TIDESONG · 原创作品</span>
           </div>
         </div>
@@ -127,6 +129,7 @@ export class UI {
         <div class="quest-card" id="quest-card">
           <div class="quest-eyebrow"><i></i> 当前目标</div>
           <div class="quest-text" id="quest-text">……</div>
+          <div class="quest-distance hidden" id="quest-distance"><i></i><span></span></div>
           <div class="quest-progress hidden" id="quest-progress"><span id="quest-progress-text"></span><div><i id="quest-progress-fill"></i></div></div>
         </div>
 
@@ -221,7 +224,7 @@ export class UI {
   collectRefs() {
     const ids = [
       'boot-screen', 'title-screen', 'hud', 'hud-chapter-no', 'hud-chapter-name', 'hud-coins', 'hud-level', 'hud-xp',
-      'hud-basket', 'quest-card', 'quest-text', 'quest-progress', 'quest-progress-text', 'quest-progress-fill',
+      'hud-basket', 'quest-card', 'quest-text', 'quest-distance', 'quest-progress', 'quest-progress-text', 'quest-progress-fill',
       'compass', 'compass-ticks', 'compass-marker', 'compass-deg', 'crosshair', 'prompt', 'bait-dock',
       'fishing-charge', 'charge-fill', 'charge-cursor', 'bite-prompt', 'bite-title', 'bite-hint',
       'reel-hud', 'reel-name', 'reel-status', 'tension-fill', 'tension-needle', 'tension-value',
@@ -237,6 +240,7 @@ export class UI {
     this.refs.bootStatus = this.root.querySelector('.boot-status');
     this.refs.bootQuote = this.root.querySelector('.boot-quote');
     this.refs.titleContinue = this.root.querySelector('[data-title="continue"]');
+    this.refs.titleProfile = this.root.querySelector('#title-profile');
   }
 
   bind() {
@@ -246,12 +250,18 @@ export class UI {
         this.game.toggleFullscreen();
         return;
       }
+      const accountOpen = e.target.closest('[data-account]');
+      if (accountOpen) {
+        this.openAccount();
+        return;
+      }
       const t = e.target.closest('[data-title]');
       if (t) {
         const action = t.dataset.title;
         if (action === 'new') this.game.newGame();
         if (action === 'continue') this.game.continueGame();
         if (action === 'settings') this.openSettings();
+        if (action === 'account') this.openAccount();
         if (action === 'credits') this.showCredits();
         return;
       }
@@ -405,6 +415,8 @@ export class UI {
     this.refs.titleScreen?.classList.remove('hidden');
     this.refs.hud?.classList.add('hidden');
     if (this.refs.titleContinue) this.refs.titleContinue.style.display = hasSave ? '' : 'none';
+    const profile = this.game.profiles?.active;
+    if (this.refs.titleProfile) this.refs.titleProfile.textContent = `${profile?.name || '归潮者'} · 本地存档 · ${hasSave ? '已有进度' : '新旅程'}`;
     this.game.setMode('title');
     this.fadeOut(600);
   }
@@ -512,6 +524,21 @@ export class UI {
   setObjectiveMarker(pos) {
     this.objectivePos = pos ? { x: pos.x, y: pos.y, z: pos.z } : null;
     this.refs.compassMarker?.classList.toggle('hidden', !pos);
+  }
+
+  updateQuestDistance(playerPos, target, label) {
+    const el = this.refs.questDistance;
+    if (!el) return;
+    if (!target || !playerPos) { el.classList.add('hidden'); return; }
+    const dx = target.x - playerPos.x;
+    const dz = target.z - playerPos.z;
+    const dist = Math.round(Math.hypot(dx, dz));
+    if (!Number.isFinite(dist) || dist > 999) { el.classList.add('hidden'); return; }
+    const deg = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360;
+    const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+    const dir = dirs[Math.round(deg / 45) % 8];
+    el.querySelector('span').textContent = `${label || '目标'} · ${dist}m · ${dir}`;
+    el.classList.remove('hidden');
   }
 
   updateQuest(obj, chapter, progress, state) {
@@ -827,6 +854,60 @@ export class UI {
     this.bindSettingsInputs();
   }
 
+  openAccount() {
+    const profiles = this.game.profiles;
+    const active = profiles.active;
+    const rows = profiles.list.map((p) => `
+      <div class="account-row ${p.id === active.id ? 'current' : ''}">
+        <div><b>${p.name}</b><span>${p.guest ? '游客存档' : 'PIN 保护'}${p.lastPlayed ? ` · ${new Date(p.lastPlayed).toLocaleDateString('zh-CN')}` : ''}</span></div>
+        ${p.id === active.id
+          ? '<em>当前</em>'
+          : `<button class="btn ghost small" data-account-switch="${p.id}">进入</button>`}
+      </div>`).join('');
+    const html = `<div class="account-modal">
+      <div class="modal-eyebrow">LOCAL ARCHIVE</div><h2>潮声档案</h2>
+      <p class="muted">账号只保存在此浏览器。换设备或清理浏览器前，请导出存档；导入可恢复。</p>
+      <div class="account-current"><span>当前账号</span><b>${active.name}</b><small>${this.state.hasSave() ? '已有进度' : '尚无进度'}</small></div>
+      <div class="account-list">${rows}</div>
+      <div class="account-form">
+        <input id="account-name" maxlength="14" placeholder="账号名（2–14 字）" autocomplete="username"/>
+        <input id="account-pin" type="password" inputmode="numeric" maxlength="8" placeholder="4–8 位 PIN" autocomplete="current-password"/>
+        <div class="account-form-actions"><button class="btn primary small" data-account-login>登录</button><button class="btn small" data-account-create>创建账号</button></div>
+      </div>
+      <div class="account-transfer"><button class="btn ghost small" data-save-export>导出当前存档</button><button class="btn ghost small" data-import-trigger>导入存档文件</button></div>
+      <input id="save-import-file" type="file" accept="application/json,.json" hidden/>
+      <div class="account-note">本地账号用于区分多个存档，不是云端登录。游客账号无需 PIN；“创建账号”会把当前进度复制到新账号。</div>
+      <div class="settings-close"><button class="btn ghost" data-close>关闭</button></div>
+    </div>`;
+    this.openModal(html, { kind: 'account', wide: false });
+    this.refs.modalContent.querySelectorAll('[data-account-switch]').forEach((btn) => {
+      btn.addEventListener('click', () => this.game.switchProfile(btn.dataset.accountSwitch));
+    });
+    this.refs.modalContent.querySelector('[data-account-login]')?.addEventListener('click', () => {
+      const name = this.refs.modalContent.querySelector('#account-name')?.value || '';
+      const pin = this.refs.modalContent.querySelector('#account-pin')?.value || '';
+      this.game.loginProfile(name, pin);
+    });
+    this.refs.modalContent.querySelector('[data-account-create]')?.addEventListener('click', () => {
+      const name = this.refs.modalContent.querySelector('#account-name')?.value || '';
+      const pin = this.refs.modalContent.querySelector('#account-pin')?.value || '';
+      this.game.createProfile(name, pin);
+    });
+    this.refs.modalContent.querySelector('[data-save-export]')?.addEventListener('click', () => this.game.exportSave());
+    this.refs.modalContent.querySelector('[data-import-trigger]')?.addEventListener('click', () => {
+      this.refs.modalContent.querySelector('#save-import-file')?.click();
+    });
+    this.refs.modalContent.querySelector('#save-import-file')?.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        this.game.importSave(await file.text());
+      } catch (e) {
+        this.toast('存档文件无法读取。', 'warn');
+      }
+    });
+  }
+
   // ── shop ──────────────────────────────────────────────────────────
   openShop() {
     this.shopTab = 'bait';
@@ -986,6 +1067,7 @@ export class UI {
             }).join('')}
           </svg>
         </div>
+        <div class="map-objective"><span>当前目标</span>${this.game.quest.objective?.hint || '自由探索'} <b>${this.game.quest.getTargetLabel()}</b></div>
         <div class="map-caption">当前：${ch.title} · ${ISLAND_NAMES[ch.island]}　|　已点亮 ${st.data.chapterCleared.length} / ${CHAPTERS.length} 座潮心</div>
       </div>`;
     } else if (tab === 'settings') {
@@ -1004,6 +1086,7 @@ export class UI {
     const s = this.state.settings;
     return `<div class="settings-panel">
       <div class="modal-eyebrow">SETTINGS</div><h2>设置</h2><p class="muted">调校潮声与画面。</p>
+      <div class="setting-row"><label>存档账号</label><button class="btn small" data-account><span>${this.game.profiles?.active?.name || '归潮者'}</span><small>切换 / 导出</small></button></div>
       <div class="setting-row"><label>画面质量</label><div class="segmented" data-quality>${['high', 'medium', 'low'].map((q) => `<button data-setting-quality="${q}" class="${s.quality === q ? 'active' : ''}">${q === 'high' ? '电影' : q === 'medium' ? '均衡' : '流畅'}</button>`).join('')}</div></div>
       <div class="setting-row"><label>主音量 <output>${s.volume.toFixed(2)}</output></label><input type="range" min="0" max="1" step="0.01" value="${s.volume}" data-setting="volume"/></div>
       <div class="setting-row"><label>音乐 <output>${s.music.toFixed(2)}</output></label><input type="range" min="0" max="1" step="0.01" value="${s.music}" data-setting="music"/></div>
@@ -1050,7 +1133,7 @@ export class UI {
       this.openModal(`<div class="confirm-modal"><div class="modal-eyebrow">IRREVERSIBLE</div><h2>让潮水抹去这段旅程？</h2><p>所有渔获、图鉴、等级与故事进度都会消失。</p><div class="confirm-actions"><button class="btn ghost" data-close>再想想</button><button class="btn danger" data-confirm-reset>确认抹去</button></div></div>`, { kind: 'confirm' });
       this.refs.modalContent.querySelector('[data-confirm-reset]')?.addEventListener('click', () => {
         this.state.reset(false);
-        this.state.clearSave();
+        this.game.clearSave();
         this.closeModal();
         this.game.quitToTitle(true, false);
       });
