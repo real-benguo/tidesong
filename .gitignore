@@ -3,6 +3,7 @@ dist/
 assets-source/
 shots/
 /heishenhua-*/
+cloudflared.exe
 *.log
 .DS_Store
 Thumbs.db
