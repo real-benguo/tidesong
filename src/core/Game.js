@@ -415,7 +415,10 @@ export class Game {
       this.renderer.render(this.scene, this.camera);
     }
     if (!islandChanged) {
-      if (!resume) this.world.setLighthouseLit(false);
+      if (!resume) {
+        this.world.setLighthouseLit(false);
+        if (this.world.bossLight) this.world.bossLight.intensity = 0.35;
+      }
       this.world.refreshCollected();
     }
     this.quest.setWorld(this.world);
