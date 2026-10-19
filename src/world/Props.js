@@ -45,6 +45,14 @@ function rounded(w, h, d, r, mat, x = 0, y = 0, z = 0) {
   return m;
 }
 
+function sphere(r, mat, x = 0, y = 0, z = 0, seg = 12) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.max(6, Math.floor(seg / 2))), mat);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+
 function cyl(rt, rb, h, mat, x = 0, y = 0, z = 0, seg = 16) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg, 1), mat);
   m.position.set(x, y, z);
@@ -349,6 +357,51 @@ export class PropBuilder {
     }
     cab.add(box(1.0, 0.42, 0.05, this.materials.glass, 0, 0.62, -0.84));
     g.add(cab);
+    // Name board, life ring, deck cleats, rope and rod holders.
+    const plateCanvas = document.createElement('canvas');
+    plateCanvas.width = 256;
+    plateCanvas.height = 64;
+    const plateCtx = plateCanvas.getContext('2d');
+    plateCtx.fillStyle = '#173a3d';
+    plateCtx.fillRect(0, 0, 256, 64);
+    plateCtx.strokeStyle = '#c8a86a';
+    plateCtx.lineWidth = 3;
+    plateCtx.strokeRect(4, 4, 248, 56);
+    plateCtx.fillStyle = '#e7d7b3';
+    plateCtx.font = '30px "Noto Serif SC", serif';
+    plateCtx.textAlign = 'center';
+    plateCtx.textBaseline = 'middle';
+    plateCtx.fillText(name, 128, 35);
+    const plateTex = new THREE.CanvasTexture(plateCanvas);
+    plateTex.colorSpace = THREE.SRGBColorSpace;
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.22), new THREE.MeshBasicMaterial({ map: plateTex }));
+    plate.position.set(0, 1.28, 1.535);
+    plate.rotation.y = 0;
+    g.add(plate);
+    for (const side of [-1, 1]) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.045, 6, 20), new THREE.MeshStandardMaterial({ color: '#d9784e', roughness: 0.72 }));
+      ring.position.set(side * (B * 0.43), 0.86, 1.35);
+      ring.rotation.y = Math.PI / 2;
+      g.add(ring);
+      const cleat = box(0.34, 0.06, 0.12, this.materials.brass, side * B * 0.36, 0.92, -1.15);
+      g.add(cleat);
+      g.add(cyl(0.025, 0.025, 0.16, this.materials.brass, side * B * 0.36, 0.84, -1.15, 6));
+    }
+    const coil = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 5, 18), this.materials.rope);
+    coil.rotation.x = Math.PI / 2;
+    coil.position.set(-0.55, 0.73, -1.45);
+    g.add(coil);
+    const radar = new THREE.Group();
+    radar.position.set(0.55, 1.8, 0.2);
+    radar.add(cyl(0.025, 0.035, 0.7, this.materials.metal, 0, 0.35, 0, 6));
+    radar.add(rounded(0.5, 0.06, 0.14, 0.02, this.materials.metal, 0, 0.7, 0));
+    g.add(radar);
+    for (const [x, z, rz] of [[-0.75, -0.5, -0.4], [-0.55, -0.7, -0.5]]) {
+      const rod = cyl(0.012, 0.018, 2.1, this.materials.woodPale, x, 1.1, z, 5);
+      rod.rotation.z = rz;
+      rod.rotation.x = -0.45;
+      g.add(rod);
+    }
     // Outboard.
     const motor = new THREE.Group();
     motor.position.set(0, 0.7, -L / 2 - 0.2);
@@ -382,8 +435,42 @@ export class PropBuilder {
   buildLighthouse() {
     const g = new THREE.Group();
     const stone = this.materials.stoneWall;
-    const white = this.materials.paint;
     const red = this.materials.paintRed;
+    // Distinct plaster map for the tower: sun-bleached patches, hairline
+    // cracks and salt streaks keep the silhouette from reading as a flat cone.
+    const plasterCanvas = document.createElement('canvas');
+    plasterCanvas.width = 512;
+    plasterCanvas.height = 512;
+    const pctx = plasterCanvas.getContext('2d');
+    pctx.fillStyle = '#e6dfcf';
+    pctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 420; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const s = 3 + Math.random() * 34;
+      pctx.fillStyle = `rgba(${90 + Math.random() * 70},${82 + Math.random() * 60},${66 + Math.random() * 50},${0.025 + Math.random() * 0.07})`;
+      pctx.beginPath();
+      pctx.ellipse(x, y, s, s * (0.25 + Math.random() * 0.9), Math.random() * 3, 0, Math.PI * 2);
+      pctx.fill();
+    }
+    for (let i = 0; i < 34; i++) {
+      const x = Math.random() * 512;
+      pctx.strokeStyle = `rgba(72,65,54,${0.05 + Math.random() * 0.1})`;
+      pctx.lineWidth = 0.5 + Math.random();
+      pctx.beginPath();
+      pctx.moveTo(x, 0);
+      pctx.bezierCurveTo(x + 8, 140, x - 9, 330, x + 4, 512);
+      pctx.stroke();
+    }
+    const plasterTex = new THREE.CanvasTexture(plasterCanvas);
+    plasterTex.colorSpace = THREE.SRGBColorSpace;
+    plasterTex.wrapS = plasterTex.wrapT = THREE.RepeatWrapping;
+    plasterTex.repeat.set(3, 2);
+    plasterTex.anisotropy = 8;
+    const white = new THREE.MeshStandardMaterial({
+      map: plasterTex, bumpMap: plasterTex, bumpScale: 0.025,
+      color: new THREE.Color('#eee7d8'), roughness: 0.72,
+    });
     // Sink a wide plinth into the hillside so the lighthouse can never appear
     // to float on a slope.
     g.add(cyl(3.5, 4.35, 2.8, stone, 0, -0.65, 0, 48));
@@ -409,23 +496,62 @@ export class PropBuilder {
     tower.castShadow = true;
     tower.receiveShadow = true;
     g.add(tower);
+    const radiusAt = (y) => 2.35 - ((y - 1.8) / 11.8) * 0.8;
     for (const [y, h] of [[4.0, 1.1], [8.5, 1.0]]) {
-      const r = 2.32 - (y - 1.8) * 0.06;
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(r, r + 0.04, h, 40, 1), red);
+      const r = radiusAt(y);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.01, r + 0.05, h, 40, 1), red);
       band.position.y = y;
       band.castShadow = true;
       g.add(band);
     }
-    // Door, windows, stone quoins.
-    const door = box(1.05, 1.9, 0.22, this.materials.woodDark, 0, 2.75, 2.39);
-    door.rotation.y = 0;
+    // Iron hoops and rivets give the tower readable scale from the path.
+    for (const y of [3.0, 6.4, 10.6, 12.7]) {
+      const r = radiusAt(y) + 0.025;
+      const hoop = new THREE.Mesh(new THREE.TorusGeometry(r, 0.045, 5, 48), this.materials.iron);
+      hoop.rotation.x = Math.PI / 2;
+      hoop.position.y = y;
+      g.add(hoop);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        g.add(sphere(0.028, this.materials.metal, Math.sin(a) * (r + 0.02), y, Math.cos(a) * (r + 0.02), 8));
+      }
+    }
+    // Door with stone surround, planks and iron hardware.
+    const door = box(1.05, 1.9, 0.22, this.materials.woodDark, 0, 2.75, 2.36);
     g.add(door);
+    for (const x of [-0.42, 0, 0.42]) g.add(box(0.035, 1.78, 0.035, this.materials.woodPale, x, 2.75, 2.49));
+    for (const y of [2.05, 3.34]) {
+      g.add(box(0.9, 0.07, 0.06, this.materials.iron, 0, y, 2.48));
+      g.add(sphere(0.055, this.materials.brass, 0.34, y, 2.53, 8));
+    }
     g.add(box(1.3, 0.16, 0.3, this.materials.woodPale, 0, 3.72, 2.52));
+    for (const side of [-1, 1]) {
+      g.add(box(0.18, 2.05, 0.28, stone, side * 0.64, 2.78, 2.4));
+      g.add(box(0.58, 0.18, 0.28, stone, side * 0.42, 3.83, 2.4));
+    }
+    // Framed windows and sills, sunk into the tower radius.
     for (const [y, a] of [[5.4, -0.3], [9.0, 0.2], [12.1, -0.6]]) {
-      const w = box(0.34, 0.62, 0.12, this.materials.glass, Math.sin(a) * 1.9, y, Math.cos(a) * 1.9);
+      const r = radiusAt(y) + 0.01;
+      const frame = box(0.5, 0.78, 0.09, this.materials.iron, Math.sin(a) * r, y, Math.cos(a) * r);
+      frame.rotation.y = a;
+      g.add(frame);
+      const w = box(0.34, 0.6, 0.13, this.materials.glass, Math.sin(a) * (r + 0.035), y, Math.cos(a) * (r + 0.035));
       w.rotation.y = a;
       g.add(w);
+      for (const dy of [-0.4, 0.4]) {
+        const sill = box(0.6, 0.07, 0.16, stone, Math.sin(a) * (r + 0.04), y + dy, Math.cos(a) * (r + 0.04));
+        sill.rotation.y = a;
+        g.add(sill);
+      }
     }
+    // A weathered drainpipe and brackets on the seaward face.
+    const pipeAngle = 2.35;
+    for (let i = 0; i < 4; i++) {
+      const y = 3.2 + i * 2.5;
+      const r = radiusAt(y) + 0.08;
+      g.add(box(0.22, 0.06, 0.14, this.materials.iron, Math.sin(pipeAngle) * r, y, Math.cos(pipeAngle) * r));
+    }
+    g.add(cyl(0.055, 0.065, 9.4, this.materials.iron, Math.sin(pipeAngle) * (radiusAt(8) + 0.1), 7.3, Math.cos(pipeAngle) * (radiusAt(8) + 0.1), 8));
     // Balcony.
     g.add(cyl(2.55, 2.7, 0.24, this.materials.iron, 0, 13.15, 0, 32));
     for (let i = 0; i < 20; i++) {
@@ -987,6 +1113,11 @@ export class PropBuilder {
   buildLighthouseLit() {
     if (this.beamGroup) this.beamGroup.visible = true;
     if (this.lens) this.lens.material.emissiveIntensity = 5.5;
+  }
+
+  setLighthouseLit(on) {
+    if (this.beamGroup) this.beamGroup.visible = on;
+    if (this.lens) this.lens.material.emissiveIntensity = on ? 5.5 : 0.35;
   }
 
   update(dt, t) {

@@ -38,6 +38,14 @@ export class UI {
     this.modalKind = null;
     this.bossCueData = null;
     this.defeatCallbacks = null;
+    this._compassHidden = true;
+    this._distanceHidden = true;
+    this._objectiveHidden = true;
+    this._compassText = '';
+    this._distanceText = '';
+    this._promptHidden = true;
+    this._promptText = '';
+    this._promptKey = '';
     this.root = document.createElement('div');
     this.root.id = 'ui-root';
     this.root.innerHTML = this.template();
@@ -88,6 +96,7 @@ export class UI {
             <button class="title-btn primary" data-title="new"><span>开始旅程</span><small>NEW JOURNEY</small></button>
             <button class="title-btn" data-title="continue"><span>继续旅程</span><small>CONTINUE</small></button>
             <button class="title-btn small" data-title="settings">设置</button>
+            <button class="title-btn small duel-entry" data-title="duel">潮斗</button>
             <button class="title-btn small" data-fullscreen title="全屏（F11）">全屏</button>
             <button class="title-btn small" data-title="account">账号</button>
             <button class="title-btn small" data-title="credits">制作名单</button>
@@ -99,6 +108,17 @@ export class UI {
           </div>
         </div>
         <div class="title-side">潮<br/>汐<br/>遗<br/>歌</div>
+      </div>
+
+      <div id="duel-ui" class="duel-ui hidden">
+        <div class="duel-head"><div><b>潮斗</b><span>LOCAL 1V1 · 双人决斗</span></div><div class="duel-phase" id="duel-phase">准备</div></div>
+        <div class="duel-bars">
+          <div class="duel-side p1"><div class="duel-name"><span>沈屿</span><b id="duel-hp1-text">100</b></div><div class="duel-hp"><i id="duel-hp1"></i></div><small>WASD 移动 · J 攻击 · K 冲刺 · L 格挡</small></div>
+          <div class="duel-side p2"><div class="duel-name"><span id="duel-name2">潮斗者</span><b id="duel-hp2-text">100</b></div><div class="duel-hp"><i id="duel-hp2"></i></div><small id="duel-hint2">方向键 移动 · U 攻击 · I 冲刺 · O 格挡</small></div>
+        </div>
+        <div class="duel-count" id="duel-count">3</div>
+        <div class="duel-result hidden" id="duel-result"><span>潮斗结束</span><h3 id="duel-result-title">沈屿获胜</h3><div><button class="btn primary small" data-duel="rematch">再战一局</button><button class="btn ghost small" data-duel="exit">离开潮斗</button></div></div>
+        <div class="duel-hint">Esc 离开 · 本地双人同屏 · 先击倒对方者获胜</div>
       </div>
 
       <div id="hud" class="hud hidden">
@@ -234,6 +254,7 @@ export class UI {
       'boss-result', 'dialogue-layer', 'dialogue-portrait', 'dialogue-name', 'dialogue-role', 'dialogue-text',
       'dialogue-tone', 'dialogue-continue', 'dialogue-skip', 'modal-layer', 'modal-content', 'toast-layer',
       'fade-layer', 'cinematic-layer', 'ending-layer', 'boss-overlay', 'controls-hint', 'compass',
+      'duel-ui', 'duel-phase', 'duel-count', 'duel-result', 'duel-result-title', 'duel-hp1', 'duel-hp2', 'duel-hp1-text', 'duel-hp2-text', 'duel-name2', 'duel-hint2',
     ];
     for (const id of ids) this.refs[id.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = document.getElementById(id);
     this.refs.bootFill = this.root.querySelector('.boot-progress-fill');
@@ -255,6 +276,18 @@ export class UI {
         this.openAccount();
         return;
       }
+      const duelButton = e.target.closest('[data-duel]');
+      if (duelButton) {
+        if (duelButton.dataset.duel === 'rematch') this.game.duel?.rematch();
+        else this.game.duel?.exit();
+        return;
+      }
+      const duelMode = e.target.closest('[data-duel-mode]');
+      if (duelMode) {
+        this.closeModal();
+        this.game.startDuel(duelMode.dataset.duelMode);
+        return;
+      }
       const t = e.target.closest('[data-title]');
       if (t) {
         const action = t.dataset.title;
@@ -262,6 +295,7 @@ export class UI {
         if (action === 'continue') this.game.continueGame();
         if (action === 'settings') this.openSettings();
         if (action === 'account') this.openAccount();
+        if (action === 'duel') this.openDuelMenu();
         if (action === 'credits') this.showCredits();
         return;
       }
@@ -425,6 +459,50 @@ export class UI {
     this.refs.titleScreen?.classList.add('hidden');
   }
 
+  showDuelHud(ai = false) {
+    this.refs.duelUi?.classList.remove('hidden');
+    this.refs.duelResult?.classList.add('hidden');
+    this.refs.duelCount?.classList.remove('hidden');
+    if (this.refs.duelName2) this.refs.duelName2.textContent = ai ? '潮斗者 · AI' : '潮斗者';
+    if (this.refs.duelHint2) this.refs.duelHint2.textContent = ai ? 'AI 会自动攻防 · 你只需专注自己的节奏' : '方向键 移动 · U 攻击 · I 冲刺 · O 格挡';
+  }
+
+  hideDuelHud() {
+    this.refs.duelUi?.classList.add('hidden');
+    this.refs.duelResult?.classList.add('hidden');
+  }
+
+  updateDuelHud(duel, phase) {
+    if (!duel?.p1) return;
+    const p1 = Math.max(0, duel.p1.hp);
+    const p2 = Math.max(0, duel.p2.hp);
+    if (this.refs.duelHp1) this.refs.duelHp1.style.width = `${p1}%`;
+    if (this.refs.duelHp2) this.refs.duelHp2.style.width = `${p2}%`;
+    if (this.refs.duelHp1Text) this.refs.duelHp1Text.textContent = String(p1);
+    if (this.refs.duelHp2Text) this.refs.duelHp2Text.textContent = String(p2);
+    if (this.refs.duelPhase) this.refs.duelPhase.textContent = phase || (duel.phase === 'fight' ? '进行中' : '准备');
+    if (this.refs.duelCount) {
+      if (duel.phase === 'ready') {
+        this.refs.duelCount.textContent = String(Math.max(1, Math.ceil(duel.countdown)));
+        this.refs.duelCount.classList.remove('hidden');
+      } else {
+        this.refs.duelCount.classList.add('hidden');
+      }
+    }
+  }
+
+  showDuelResult(title) {
+    if (!this.refs.duelResult) return;
+    this.refs.duelResultTitle.textContent = title;
+    this.refs.duelResult.classList.remove('hidden');
+    this.refs.duelCount?.classList.add('hidden');
+  }
+
+  hideDuelResult() {
+    this.refs.duelResult?.classList.add('hidden');
+    this.refs.duelCount?.classList.remove('hidden');
+  }
+
   showHud() {
     this.refs.hud?.classList.remove('hidden');
     this.refs.controlsHint?.classList.remove('hidden');
@@ -487,17 +565,28 @@ export class UI {
 
   setPrompt(text, key = 'E') {
     if (!text) {
-      this.refs.prompt.classList.add('hidden');
+      if (!this._promptHidden) {
+        this._promptHidden = true;
+        this.refs.prompt.classList.add('hidden');
+      }
       return;
     }
+    const label = key === 'LMB' ? '左键' : key;
+    if (!this._promptHidden && this._promptText === text && this._promptKey === label) return;
+    this._promptHidden = false;
+    this._promptText = text;
+    this._promptKey = label;
     this.refs.prompt.classList.remove('hidden');
-    this.refs.prompt.querySelector('kbd').textContent = key === 'LMB' ? '左键' : key;
+    this.refs.prompt.querySelector('kbd').textContent = label;
     this.refs.prompt.querySelector('span').textContent = text;
   }
 
   setCrosshair(mode = 'default') {
     const c = this.refs.crosshair;
     if (!c) return;
+    this.crosshairMode = this.crosshairMode || '';
+    if (this.crosshairMode === mode) return;
+    this.crosshairMode = mode;
     c.className = `crosshair ${mode}`;
   }
 
@@ -506,39 +595,74 @@ export class UI {
     const norm = ((yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     const deg = Math.round(((norm * 180) / Math.PI + 180) % 360);
     const card = deg < 22.5 || deg >= 337.5 ? 'N' : deg < 67.5 ? 'NE' : deg < 112.5 ? 'E' : deg < 157.5 ? 'SE' : deg < 202.5 ? 'S' : deg < 247.5 ? 'SW' : deg < 292.5 ? 'W' : 'NW';
-    this.refs.compassDeg.textContent = `${card} · ${String(deg).padStart(3, '0')}°`;
+    const compassText = `${card} · ${String(deg).padStart(3, '0')}°`;
+    if (this._compassText !== compassText) {
+      this._compassText = compassText;
+      this.refs.compassDeg.textContent = compassText;
+    }
     const span = Math.PI * 1.1;
     if (targetPos && playerPos) {
       const desired = Math.atan2(-(targetPos.x - playerPos.x), -(targetPos.z - playerPos.z));
       let rel = desired - yaw;
       while (rel > Math.PI) rel -= Math.PI * 2;
       while (rel < -Math.PI) rel += Math.PI * 2;
-      const left = 50 - (rel / span) * 100;
-      this.refs.compassMarker.style.left = `${clamp(left, 3, 97)}%`;
-      this.refs.compassMarker.classList.remove('hidden');
-    } else {
+      const left = clamp(50 - (rel / span) * 100, 3, 97);
+      const leftText = `${left.toFixed(1)}%`;
+      if (this._compassLeft !== leftText) {
+        this._compassLeft = leftText;
+        this.refs.compassMarker.style.left = leftText;
+      }
+      if (this._compassHidden) {
+        this._compassHidden = false;
+        this.refs.compassMarker.classList.remove('hidden');
+      }
+    } else if (!this._compassHidden) {
+      this._compassHidden = true;
       this.refs.compassMarker.classList.add('hidden');
     }
   }
 
   setObjectiveMarker(pos) {
     this.objectivePos = pos ? { x: pos.x, y: pos.y, z: pos.z } : null;
-    this.refs.compassMarker?.classList.toggle('hidden', !pos);
+    const hidden = !pos;
+    if (this._objectiveHidden !== hidden) {
+      this._objectiveHidden = hidden;
+      this.refs.compassMarker?.classList.toggle('hidden', hidden);
+    }
   }
 
   updateQuestDistance(playerPos, target, label) {
     const el = this.refs.questDistance;
     if (!el) return;
-    if (!target || !playerPos) { el.classList.add('hidden'); return; }
+    if (!target || !playerPos) {
+      if (!this._distanceHidden) {
+        this._distanceHidden = true;
+        el.classList.add('hidden');
+      }
+      return;
+    }
     const dx = target.x - playerPos.x;
     const dz = target.z - playerPos.z;
     const dist = Math.round(Math.hypot(dx, dz));
-    if (!Number.isFinite(dist) || dist > 999) { el.classList.add('hidden'); return; }
+    if (!Number.isFinite(dist) || dist > 999) {
+      if (!this._distanceHidden) {
+        this._distanceHidden = true;
+        el.classList.add('hidden');
+      }
+      return;
+    }
     const deg = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360;
     const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
     const dir = dirs[Math.round(deg / 45) % 8];
-    el.querySelector('span').textContent = `${label || '目标'} · ${dist}m · ${dir}`;
-    el.classList.remove('hidden');
+    const text = `${label || '目标'} · ${dist}m · ${dir}`;
+    if (this._distanceText !== text) {
+      this._distanceText = text;
+      el.querySelector('span').textContent = text;
+    }
+    if (this._distanceHidden) {
+      this._distanceHidden = false;
+      el.classList.remove('hidden');
+    }
   }
 
   updateQuest(obj, chapter, progress, state) {
@@ -852,6 +976,19 @@ export class UI {
     const html = `<div class="settings-standalone">${this.settingsContent()}<div class="settings-close"><button class="btn ghost" data-close>完成</button></div></div>`;
     this.openModal(html, { kind: 'settings', wide: false });
     this.bindSettingsInputs();
+  }
+
+  openDuelMenu() {
+    const html = `<div class="duel-menu">
+      <div class="modal-eyebrow">TIDE DUEL · 1V1</div><h2>潮斗</h2>
+      <p class="muted">在同一块潮石上决出胜负。先击倒对方者获胜；格挡可以把 12 点伤害压到 4 点。</p>
+      <div class="duel-modes">
+        <button class="duel-mode" data-duel-mode="local"><b>双人同屏</b><span>P1 WASD · J 攻击 · K 冲刺 · L 格挡</span><span>P2 方向键 · U 攻击 · I 冲刺 · O 格挡</span></button>
+        <button class="duel-mode" data-duel-mode="ai"><b>单人挑战 AI</b><span>你控制沈屿</span><span>潮斗者会自动逼近、攻击和格挡</span></button>
+      </div>
+      <div class="settings-close"><button class="btn ghost" data-close>返回</button></div>
+    </div>`;
+    this.openModal(html, { kind: 'duel-menu', wide: false });
   }
 
   openAccount() {

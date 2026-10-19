@@ -27,9 +27,8 @@ function makeBobber() {
   const tip = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffcf73' }));
   tip.position.y = 0.24;
   g.add(tip);
-  const glow = new THREE.PointLight('#ffb35f', 0.4, 2.2, 2);
-  glow.position.y = 0.15;
-  g.add(glow);
+  // No point light on the bobber: showing/hiding it would change the scene's
+  // light count and force a full shader recompile when fishing starts.
   g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   return g;
 }

@@ -94,9 +94,10 @@ export class BossFight {
     this.ring.position.copy(pos).setY(0.06);
     this.ring.scale.setScalar(Math.max(4, worldSize * 0.5));
     this.game.scene.add(this.ring);
-    this.glow = new THREE.PointLight(new THREE.Color(def.boss?.color || '#ff9c64'), 3.5, 35, 1.8);
-    this.glow.position.copy(pos).add(new THREE.Vector3(0, 2, 0));
-    this.game.scene.add(this.glow);
+    // Reuse the dim light already parked at the boss site. Adding a new light
+    // here would change the light count and recompile every material.
+    this.glow = this.game.world.bossLight || null;
+    if (this.glow) this.glow.intensity = 2.2;
     this.cameraTarget.copy(pos).add(new THREE.Vector3(0, worldSize * 0.15, 0));
     this.model.userData.baseY = this.model.position.y;
     this.game.world.ocean.splash(pos.x, pos.z, 8);
@@ -272,7 +273,7 @@ export class BossFight {
     if (!this.ring) return;
     this.ring.rotation.z += dt * (0.2 + this.phaseLevel * 0.1);
     this.ring.material.opacity = 0.2 + Math.sin(this.game.time * 2.2) * 0.08;
-    this.glow.intensity = 2.8 + Math.sin(this.game.time * 3) * 0.8;
+    if (this.glow) this.glow.intensity = 2.8 + Math.sin(this.game.time * 3) * 0.8;
     if (Math.random() < dt * 0.5) {
       this.game.world.ocean.ripple(
         this.model.position.x + rand(-4, 4),
@@ -378,7 +379,7 @@ export class BossFight {
       this.ring = null;
     }
     if (this.glow) {
-      this.game.scene.remove(this.glow);
+      this.glow.intensity = 0.35;
       this.glow = null;
     }
     this.def = null;

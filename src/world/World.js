@@ -14,6 +14,8 @@ import { ISLANDS } from '../data/islands.js';
 import { mulberry32, clamp, rand } from '../utils/math.js';
 import { getObjective } from '../data/chapters.js';
 
+const yieldFrame = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 const TRAIL_PATHS = {
   hub: [[3.2, 82], [4.5, 68], [8, 56], [16, 42], [22, 22], [26, -16]],
   mangrove: [[6.5, 92], [3, 78], [-1, 64], [0, 54], [7, 50]],
@@ -122,17 +124,21 @@ export class World {
     this.terrain = new Terrain({ shape: this.shape, assets: this.assets, config: this.island, quality: this.quality });
     this.group.add(this.terrain.group);
     onProgress?.('塑造海岸', 0.16);
+    await yieldFrame();
 
     this.sky = new SkySystem({ scene: this.scene, config: this.island, assets: this.assets, quality: this.quality });
     await this.sky.load();
     onProgress?.('点亮天光', 0.34);
+    await yieldFrame();
 
     this.ocean = new Ocean({ scene: this.scene, config: this.island, terrain: this.terrain, assets: this.assets, quality: this.quality });
     onProgress?.('注入潮水', 0.48);
+    await yieldFrame();
 
     this.props = new PropBuilder({ assets: this.assets, config: this.island, shape: this.shape });
     this.group.add(this.props.group);
     onProgress?.('搭起木屋', 0.6);
+    await yieldFrame();
 
     this.trailPath2D = (TRAIL_PATHS[this.island.id] || TRAIL_PATHS.hub).map((p) => [...p]);
     this.buildDock();
@@ -143,6 +149,7 @@ export class World {
       Math.cos(this.island.dockAngle) * (this.dock.shore - 3),
     ];
     this.buildLayout();
+    await yieldFrame();
     this.vegetation = new Vegetation({
       scene: this.group, config: this.island, shape: this.shape, assets: this.assets, quality: this.quality,
       exclusions: (x, z) => this.isVegetationClear(x, z),
@@ -155,10 +162,12 @@ export class World {
     });
     this.vegetation.rocks.forEach((rock) => this.colliders.push(rock));
     onProgress?.('种下棕榈', 0.74);
+    await yieldFrame();
     this.buildTrailDressing();
     this.buildOutcrops();
     this.buildBeachDetails();
     this.mergeStaticProps();
+    await yieldFrame();
     this.buildSmoke();
     this.buildBossSite();
     this.buildInteractables();
@@ -167,7 +176,7 @@ export class World {
     this.buildPlayerShadow();
     this.buildFishingSpots();
     this.buildNPCs();
-    this.buildAmbientLife();
+    await yieldFrame();
     this.buildSeaStacks();
     this.refreshCollected();
     this.colliders = [...(this.props.colliders || []), ...this.colliders];
@@ -720,6 +729,12 @@ export class World {
       g.add(bell);
     }
     this.group.add(g);
+    // Permanent, dim light at the boss site. Keeping it in the scene from the
+    // start avoids changing the light count when the fight begins.
+    const bossLight = new THREE.PointLight(new THREE.Color(cfg.species === 'abyss_whale' ? '#ff734c' : '#ff9c64'), 0.35, 36, 1.8);
+    bossLight.position.set(0, 2, 0);
+    g.add(bossLight);
+    this.bossLight = bossLight;
     this.bossSite = g;
     this.bossRing = ring;
     this.bossRing2 = ring2;
@@ -914,12 +929,12 @@ export class World {
     glow.position.y = 1.25;
     glow.material.opacity = 0.2;
     g.add(glow);
-    const light = new THREE.PointLight(new THREE.Color('#ffd49a'), 0.3, 2.8, 2);
-    light.position.y = 1.1;
-    g.add(light);
     g.visible = false;
     this.group.add(g);
-    this.focusMarker = { group: g, ring, glow, light, target: null, pulse: 0 };
+    // Do not add a light here: toggling a light in/out of the scene changes the
+    // light count and makes WebGL recompile every material, which shows up as a
+    // multi-second hitch when the player first looks at an interactable.
+    this.focusMarker = { group: g, ring, glow, target: null, pulse: 0 };
   }
 
   buildPlayerShadow() {
@@ -951,7 +966,6 @@ export class World {
     f.ring.scale.setScalar(scale);
     f.glow.position.y = type === 'npc' ? 1.75 : type === 'shop' ? 2.35 : type === 'boss' ? 3.4 : type === 'boat' ? 1.7 : 1.05;
     f.glow.scale.setScalar(type === 'npc' ? 0.85 : 1.0);
-    f.light.position.y = Math.max(0.9, f.glow.position.y * 0.85);
     f.group.position.set(target.pos.x, target.pos.y + 0.01, target.pos.z);
     f.pulse = Math.random() * 6;
   }
@@ -1097,15 +1111,15 @@ export class World {
   refreshCollected() {
     const flags = this.state?.data?.flags || {};
     for (const c of this.allCollectibles) {
-      if (flags[`collect_${c.userData.item.id}`]) {
-        c.visible = false;
-        c.userData.collected = true;
-      }
+      const collected = !!flags[`collect_${c.userData.item.id}`];
+      c.visible = !collected;
+      c.userData.collected = collected;
     }
   }
 
   setLighthouseLit(on) {
     if (!this.props) return;
+    this.props.setLighthouseLit?.(on);
     if (on) this.props.buildLighthouseLit();
   }
 
@@ -1234,7 +1248,6 @@ export class World {
       f.ring.scale.setScalar(f.ringBase * pulse);
       f.ring.material.opacity = 0.18 + Math.sin(t * 2.4 + f.pulse) * 0.05;
       f.glow.material.opacity = 0.17 + Math.sin(t * 2.1 + f.pulse) * 0.04;
-      f.light.intensity = 0.26 + Math.sin(t * 2.4 + f.pulse) * 0.05;
     }
     if (this.playerShadow && player) {
       if (!Number.isFinite(player.y)) {

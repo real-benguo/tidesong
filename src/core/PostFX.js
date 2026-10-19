@@ -15,6 +15,8 @@ const FinalShader = {
     uWarmth: { value: 0.024 },
     uContrast: { value: 1.075 },
     uAberration: { value: 0.0003 },
+    uSharpen: { value: 0.14 },
+    uTexel: { value: new THREE.Vector2(1 / 1920, 1 / 1080) },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -33,6 +35,8 @@ const FinalShader = {
     uniform float uWarmth;
     uniform float uContrast;
     uniform float uAberration;
+    uniform float uSharpen;
+    uniform vec2 uTexel;
     varying vec2 vUv;
 
     vec3 aces(vec3 x) {
@@ -65,6 +69,17 @@ const FinalShader = {
       color.g = texture2D(tDiffuse, uv).g;
       color.b = texture2D(tDiffuse, uv - ab).b;
 
+      // A restrained unsharp mask recovers texture detail softened by the
+      // half-float post chain without turning edges into halos.
+      vec2 px = uTexel * 1.35;
+      vec3 blur = (
+        texture2D(tDiffuse, uv + vec2(px.x, 0.0)).rgb +
+        texture2D(tDiffuse, uv - vec2(px.x, 0.0)).rgb +
+        texture2D(tDiffuse, uv + vec2(0.0, px.y)).rgb +
+        texture2D(tDiffuse, uv - vec2(0.0, px.y)).rgb
+      ) * 0.25;
+      color += (color - blur) * uSharpen;
+
       color *= uExposure;
       color = aces(color);
 
@@ -95,7 +110,7 @@ export class PostFX {
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
     const target = new THREE.WebGLRenderTarget(size.x, size.y, {
       type: THREE.HalfFloatType,
-      samples: quality === 'high' ? 2 : 0,
+      samples: quality === 'high' ? 4 : quality === 'medium' ? 2 : 0,
       colorSpace: THREE.NoColorSpace,
     });
     this.composer = new EffectComposer(renderer, target);
@@ -109,6 +124,9 @@ export class PostFX {
     }
     this.finalPass = new ShaderPass(FinalShader);
     this.finalPass.renderToScreen = true;
+    this.finalPass.uniforms.uTexel.value.set(1 / Math.max(1, size.x), 1 / Math.max(1, size.y));
+    this.finalPass.uniforms.uSharpen.value = quality === 'high' ? 0.14 : quality === 'medium' ? 0.08 : 0;
+    this.finalPass.uniforms.uGrain.value = quality === 'high' ? 0.014 : 0.02;
     this.composer.addPass(this.finalPass);
     this.time = 0;
   }
@@ -116,6 +134,10 @@ export class PostFX {
   setQuality(quality) {
     this.quality = quality;
     if (this.bloom) this.bloom.enabled = quality !== 'low';
+    if (this.finalPass) {
+      this.finalPass.uniforms.uSharpen.value = quality === 'high' ? 0.14 : quality === 'medium' ? 0.08 : 0;
+      this.finalPass.uniforms.uGrain.value = quality === 'high' ? 0.014 : 0.02;
+    }
   }
 
   setExposure(v) {
@@ -135,6 +157,10 @@ export class PostFX {
   resize(width, height) {
     this.composer.setSize(width, height);
     if (this.bloom) this.bloom.setSize(width, height);
+    if (this.finalPass) {
+      const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.finalPass.uniforms.uTexel.value.set(1 / Math.max(1, size.x), 1 / Math.max(1, size.y));
+    }
   }
 
   dispose() {

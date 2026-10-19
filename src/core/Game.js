@@ -10,6 +10,7 @@ import { Player } from '../player/Player.js';
 import { Fishing } from '../gameplay/Fishing.js';
 import { QuestSystem } from '../gameplay/QuestSystem.js';
 import { BossFight } from '../gameplay/BossFight.js';
+import { Duel } from '../gameplay/Duel.js';
 import { FishPortraitRenderer } from '../gameplay/FishFactory.js';
 import { AudioSystem } from '../audio/AudioSystem.js';
 import { CHAPTERS, getChapter } from '../data/chapters.js';
@@ -28,6 +29,7 @@ export class Game {
     this.state = new GameState({ saveKey: this.profiles.saveKey });
     this.mode = 'boot';
     this.sessionActive = false;
+    this.loading = true;
     this.time = 0;
     this.shake = 0;
     this.saveTimer = 0;
@@ -86,9 +88,24 @@ export class Game {
       onProgress: (label, p) => this.ui.setLoading(0.5 + p * 0.46, label),
     });
     this.bindWorld();
+    this.prewarmPortraits();
     this.player.enabled = false;
     this.player.setFrozen(true);
     this.quest.setWorld(this.world);
+    this.ui.setLoading(0.9, '正在等潮水对齐……');
+    this.setTitleCamera();
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch (e) {
+      this.renderer.compile(this.scene, this.camera);
+    }
+    // Force the first real draw while the boot layer is still visible. This is
+    // where the driver compiles shadow variants and uploads the island buffers;
+    // doing it later causes a multi-second freeze on the first gameplay frame.
+    this.renderer.setRenderTarget(null);
+    this.renderer.render(this.scene, this.camera);
+    this.flushGPU();
+    this.loading = false;
     this.ui.setLoading(0.99, '归潮');
     await sleep(250);
     this.ui.hideBoot();
@@ -104,6 +121,10 @@ export class Game {
     this.player.setRodTier(this.state.data.equipment.rod);
     this.fishing.world = this.world;
     this.quest.setWorld(this.world);
+    // The world lighting and most props are static; only re-render the large
+    // 2048px shadow map when a new world/actor is introduced.
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   bindEvents() {
@@ -175,6 +196,17 @@ export class Game {
     }
     if (this.mode === 'title') {
       if (code === 'Escape' && this.ui.modalKind) this.ui.closeModal();
+      return;
+    }
+    if (this.mode === 'duel') {
+      if (code === 'Escape') {
+        this.duel?.exit();
+        return;
+      }
+      if (code === 'KeyR' && this.duel?.phase === 'result') {
+        this.duel.rematch();
+        return;
+      }
       return;
     }
     if (code === 'Escape') {
@@ -268,6 +300,46 @@ export class Game {
     this.shake = Math.min(0.5, this.shake + v);
   }
 
+  flushGPU() {
+    try {
+      const gl = this.renderer.getContext();
+      const px = new Uint8Array(4);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    } catch (e) {
+      /* readPixels can fail on some drivers; the render is still valid */
+    }
+  }
+
+  startDuel(mode = 'local') {
+    if (this.mode === 'duel') return;
+    this.ensureAudio();
+    this.input.exitLock();
+    this.fishing.reset();
+    this.player.setFrozen(true);
+    this.player.enabled = false;
+    this.ui.closeModal();
+    this.ui.refs.hud.classList.add('hidden');
+    this.ui.refs.titleScreen.classList.add('hidden');
+    this.ui.showTransition('潮斗 · 潮石升起');
+    this.ui.fadeIn(180);
+    this.setMode('duel');
+    this.duel = new Duel(this, { ai: mode === 'ai' });
+    this.duel.start();
+    setTimeout(() => {
+      this.ui.hideTransition();
+      this.ui.fadeOut(500);
+    }, 280);
+  }
+
+  endDuel() {
+    this.duel = null;
+    this.setMode('title');
+    this.setTitleCamera();
+    this.ui.showTitle(this.state.hasSave());
+    this.audio?.setMusicMode('title');
+    this.input.clearFrame();
+  }
+
   setTitleCamera() {
     this.titleAngle = 0;
     this.camera.position.set(56, 25, 133);
@@ -304,7 +376,10 @@ export class Game {
     this.state.save();
     this.sessionActive = true;
     this.ui.hideTitle();
-    this.world.island = null;
+    // Reuse the already-built hub when starting a new journey from the title.
+    // Rebuilding an identical island costs a multi-second GPU upload for no
+    // visual benefit.
+    if (this.world.island?.id !== 'hub') this.world.island = null;
     await this.enterChapter(1, { showCard: true, first: true });
   }
 
@@ -314,12 +389,14 @@ export class Game {
     this.state.load();
     this.sessionActive = true;
     this.ui.hideTitle();
-    this.world.island = null;
+    const targetIsland = getChapter(this.state.data.chapter).island;
+    if (this.world.island?.id !== targetIsland) this.world.island = null;
     await this.enterChapter(this.state.data.chapter, { showCard: false, resume: true });
   }
 
   async enterChapter(chapterId, { showCard = true, resume = false, first = false } = {}) {
     const ch = getChapter(chapterId);
+    this.loading = true;
     this.setMode('cinematic');
     this.player.setFrozen(true);
     this.fishing.reset();
@@ -332,7 +409,14 @@ export class Game {
         onProgress: (label, p) => this.ui.setLoading(0.4 + p * 0.6, label),
       });
       this.bindWorld();
+      this.prewarmPortraits();
       this.audio.setScene(ch.island, { immediate: true });
+      this.renderer.setRenderTarget(null);
+      this.renderer.render(this.scene, this.camera);
+    }
+    if (!islandChanged) {
+      if (!resume) this.world.setLighthouseLit(false);
+      this.world.refreshCollected();
     }
     this.quest.setWorld(this.world);
     this.player.setWorld(this.world);
@@ -340,6 +424,21 @@ export class Game {
     this.player.setRodTier(this.state.data.equipment.rod);
     this.player.setFrozen(true);
     this.ui.showHud();
+    // Warm the exact eye-level view after the rod and HUD are attached. The
+    // title camera is high above the island and frustum-culls much of the
+    // grass/shore detail, so its warm-up misses the buffers that cause the
+    // first gameplay-frame stall.
+    this.camera.position.copy(this.player.position);
+    this.camera.rotation.set(this.player.pitch, this.player.yaw, 0);
+    this.player.update(0);
+    this.post.render(0);
+    this.loading = false;
+    // Absorb the first real gameplay frame while the transition layer still
+    // covers the screen. This includes the player/world update that the warm
+    // draw alone cannot predict, and waits for the driver to finish compiling
+    // and uploading before the interactive loop starts.
+    this.update(0);
+    this.flushGPU();
     this.ui.setChapter(ch);
     this.ui.updateQuest(this.quest.objective, ch, this.quest.progress, this.state);
     this.audio.setMusicMode('explore');
@@ -421,7 +520,9 @@ export class Game {
   }
 
   startBoss(species) {
+    this.ui.fadeIn(150);
     this.boss.start(species);
+    setTimeout(() => this.ui.fadeOut(420), 160);
   }
 
   async quitToTitle(reset = false, saveFirst = true) {
@@ -635,6 +736,11 @@ export class Game {
     this.ui.refreshHUD(this.state);
   }
 
+  prewarmPortraits() {
+    if (!this.world?.island?.npcs) return;
+    for (const id of Object.keys(this.world.island.npcs)) this.getNPCPortrait(id);
+  }
+
   getNPCPortrait(id) {
     if (this.npcPortraits.has(id)) return this.npcPortraits.get(id);
     const def = NPCS[id];
@@ -671,6 +777,8 @@ export class Game {
     const s = this.settings;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, s.quality === 'high' ? 1.6 : s.quality === 'medium' ? 1.15 : 1));
     this.renderer.shadowMap.enabled = s.quality !== 'low';
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     this.post.setQuality(s.quality);
     this.audio?.setVolume(s.volume);
     this.audio?.setMusicVolume(s.music);
@@ -686,12 +794,27 @@ export class Game {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
     this.post.resize(w, h);
+    if (this.duel?.camera) {
+      this.duel.camera.aspect = w / h;
+      this.duel.camera.updateProjectionMatrix();
+    }
   }
 
   update(dt) {
     this.time += dt;
+    if (this.loading) {
+      this.audio?.update(dt);
+      return;
+    }
     if (this.mode === 'title' || this.mode === 'boot') {
       this.titleUpdate(dt);
+      this.audio?.update(dt);
+      this.post.render(dt);
+      return;
+    }
+    if (this.mode === 'duel') {
+      this.duel?.update(dt);
+      this.ui.update(dt);
       this.audio?.update(dt);
       this.post.render(dt);
       return;
@@ -737,6 +860,7 @@ export class Game {
     } catch (e) {
       console.error(e);
     }
+    this.input.clearFrame();
     requestAnimationFrame(this.loop);
   }
 }

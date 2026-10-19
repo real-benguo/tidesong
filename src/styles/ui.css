@@ -737,6 +737,39 @@ body.boss-active .cinematic-bars i { height: 4.5vh; }
 .map-objective b { color: var(--gold-2); font-weight: 400; }
 .map-caption { border-top: 1px solid var(--line-soft); padding-top: 14px; margin-top: 14px; font-size: 9px; letter-spacing: .1em; color: var(--muted); }
 
+/* ── 1v1 local tide duel ───────────────────────────────────────── */
+.duel-menu { padding: 34px 36px 28px; }
+.duel-menu h2 { margin: 8px 0 6px; font-family: var(--serif); font-weight: 500; font-size: 34px; letter-spacing: .16em; }
+.duel-menu > p { margin: 0 0 18px; font-size: 10px; line-height: 1.85; color: var(--muted); }
+.duel-modes { display: grid; gap: 9px; }
+.duel-mode { display: grid; gap: 4px; text-align: left; padding: 15px 17px; border: 1px solid var(--line-soft); background: rgba(7,18,20,.5); transition: .25s ease; }
+.duel-mode:hover { border-color: rgba(255,156,110,.7); background: rgba(91,48,53,.35); }
+.duel-mode b { font-family: var(--serif); font-size: 16px; letter-spacing: .1em; color: var(--gold-2); }
+.duel-mode span { font-size: 9px; letter-spacing: .08em; color: rgba(239,228,201,.48); }
+.duel-entry { border-color: rgba(255,156,110,.45) !important; color: #ffc49b; }
+.duel-entry:hover { background: rgba(91,48,53,.55) !important; border-color: rgba(255,156,110,.8) !important; }
+.duel-ui { position: absolute; inset: 0; z-index: 96; pointer-events: none; font-family: var(--sans); }
+.duel-head { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 26px; padding: 9px 22px; background: rgba(5,16,18,.62); border: 1px solid rgba(255,196,155,.22); backdrop-filter: blur(8px); }
+.duel-head b { font-family: var(--serif); font-size: 17px; letter-spacing: .28em; color: var(--gold-2); }
+.duel-head span { display: block; margin-top: 2px; font-size: 8px; letter-spacing: .24em; color: rgba(239,228,201,.42); }
+.duel-phase { font-size: 9px; letter-spacing: .2em; color: #ffb68c; }
+.duel-bars { position: absolute; top: 104px; left: 4vw; right: 4vw; display: flex; justify-content: space-between; gap: 22px; }
+.duel-side { width: min(38vw, 410px); }
+.duel-side.p2 { text-align: right; }
+.duel-name { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--serif); font-size: 13px; letter-spacing: .12em; color: var(--cream); }
+.duel-side.p2 .duel-name { flex-direction: row-reverse; }
+.duel-name b { font-family: var(--display); font-size: 15px; color: var(--gold-2); }
+.duel-hp { height: 8px; margin-top: 6px; padding: 1px; background: rgba(3,10,12,.7); border: 1px solid rgba(239,228,201,.2); }
+.duel-hp i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #8fe3c8, #d9b574); transition: width .15s ease; }
+.duel-side.p2 .duel-hp i { margin-left: auto; background: linear-gradient(90deg, #ffb36b, #e0785c); }
+.duel-side small { display: block; margin-top: 5px; font-size: 8px; letter-spacing: .12em; color: rgba(239,228,201,.42); }
+.duel-count { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-family: var(--display); font-size: 92px; color: var(--gold-2); text-shadow: 0 0 28px rgba(217,181,116,.38); }
+.duel-hint { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); font-size: 8px; letter-spacing: .18em; color: rgba(239,228,201,.34); white-space: nowrap; }
+.duel-result { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 360px; padding: 30px 34px; text-align: center; background: rgba(5,17,19,.92); border: 1px solid rgba(217,181,116,.4); box-shadow: 0 30px 90px rgba(0,0,0,.55); pointer-events: auto; }
+.duel-result span { font-size: 8px; letter-spacing: .28em; color: rgba(239,228,201,.42); }
+.duel-result h3 { margin: 10px 0 20px; font-family: var(--serif); font-weight: 500; font-size: 29px; letter-spacing: .12em; color: var(--gold-2); }
+.duel-result div { display: flex; justify-content: center; gap: 9px; }
+
 /* ── fish detail ───────────────────────────────────────────────── */
 .modal-content.fish-detail { width: min(800px, 92vw); }
 .detail-modal { display: grid; grid-template-columns: 44% 56%; min-height: 430px; }

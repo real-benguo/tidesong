@@ -233,12 +233,15 @@ export class Player {
     let best = null;
     let bestScore = Infinity;
     for (const it of this.world.interactables || []) {
-      const targetPos = it.pos.clone();
-      targetPos.y += it.type === 'boss' ? 0.2 : 1.0;
-      const to = targetPos.clone().sub(cam);
-      const dist = to.length();
+      const tx = it.pos.x;
+      const ty = it.pos.y + (it.type === 'boss' ? 0.2 : 1.0);
+      const tz = it.pos.z;
+      const dx = tx - cam.x;
+      const dy = ty - cam.y;
+      const dz = tz - cam.z;
+      const dist = Math.hypot(dx, dy, dz);
       if (dist > (it.radius || 3.5) + (it.type === 'boss' ? 8 : 3)) continue;
-      const dot = this.forward.dot(to.clone().normalize());
+      const dot = (dx * this.forward.x + dy * this.forward.y + dz * this.forward.z) / Math.max(0.0001, dist);
       const minDot = it.type === 'boss' ? 0.35 : dist > 8 ? 0.82 : 0.28;
       if (dot < minDot) continue;
       const score = dist - dot * 4;
@@ -290,14 +293,16 @@ export class Player {
     if (!this.world) return null;
     const origin = this.camera.position;
     const maxDist = 26 * (this.game?.stats?.cast || 1);
-    const horizontal = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    this._waterDir ||= new THREE.Vector3();
+    this._waterPoint ||= new THREE.Vector3();
+    const horizontal = this._waterDir.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     // A first-person cast is aimed along the horizontal view direction. The
     // bobber is allowed to land at the rod's maximum range even if the camera
     // is looking a little above the water.
     let candidate = null;
     let seenWater = false;
     for (let d = 4; d <= maxDist; d += 1.2) {
-      const p = origin.clone().addScaledVector(horizontal, d);
+      const p = this._waterPoint.copy(origin).addScaledVector(horizontal, d);
       const water = this.world.isWaterAim(p.x, p.z);
       if (water) {
         seenWater = true;
@@ -312,7 +317,7 @@ export class Player {
     if (this.forward.y < -0.05) {
       const t = -origin.y / this.forward.y;
       if (t > 1 && t < maxDist) {
-        const p = origin.clone().addScaledVector(this.forward, t);
+        const p = this._waterPoint.copy(origin).addScaledVector(this.forward, t);
         if (this.world.isWaterAim(p.x, p.z)) return p;
       }
     }

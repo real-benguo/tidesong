@@ -173,10 +173,9 @@ export class RodView {
     this.hand2 = hand2;
     this.group.add(hand2);
 
-    // Subtle rim light attached to the view for readable edges at dusk.
-    const rim = new THREE.PointLight(new THREE.Color('#ffd0a0'), 0.55, 2.2, 2);
-    rim.position.set(0.4, 0.2, -0.4);
-    this.group.add(rim);
+    // Readability comes from the eye-level fill light on the player camera.
+    // A point light parented here changed the scene's light count whenever the
+    // rod was shown/hidden, forcing WebGL to recompile every material.
   }
 
   setRodTier(tier) {

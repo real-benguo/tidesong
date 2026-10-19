@@ -21,6 +21,8 @@ export class AssetManager {
     this.loaded = 0;
     this.macro = null;
     this.foam = null;
+    this.repeatCache = new Map();
+    this.maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   }
 
   async loadAll(onProgress) {
@@ -73,11 +75,15 @@ export class AssetManager {
   setRepeat(name, repeatX, repeatY = repeatX, kind = 'diffuse') {
     const set = this.textures[name];
     if (!set) return null;
+    const key = `${name}:${kind}:${repeatX}:${repeatY}`;
+    const cached = this.repeatCache.get(key);
+    if (cached) return cached;
     const tex = set[kind].clone();
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(repeatX, repeatY);
-    tex.anisotropy = 8;
+    tex.anisotropy = this.maxAniso;
     tex.needsUpdate = true;
+    this.repeatCache.set(key, tex);
     return tex;
   }
 
