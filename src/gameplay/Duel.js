@@ -76,6 +76,30 @@ function shadowTexture() {
   return t;
 }
 
+function makeLabel(text, color = '#f0d29a') {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 256, 64);
+  ctx.font = '600 28px "Noto Serif SC", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(5,17,19,.65)';
+  ctx.fillRect(36, 10, 184, 44);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(36, 10, 184, 44);
+  ctx.fillStyle = color;
+  ctx.fillText(text, 128, 33);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: true }));
+  sprite.scale.set(1.65, 0.41, 1);
+  sprite.position.y = 2.55;
+  return sprite;
+}
+
 function makeBlobShadow(radius = 0.8) {
   const m = new THREE.Mesh(
     new THREE.PlaneGeometry(radius * 2, radius * 2),
@@ -183,6 +207,7 @@ class Duelist {
     this.weapon.rotation.z = -0.22;
     this.group.add(this.weapon);
     this.group.add(makeBlobShadow(0.82));
+    this.group.add(makeLabel(name, accent));
     this.aura = new THREE.Mesh(
       new THREE.RingGeometry(0.5, 0.62, 28),
       new THREE.MeshBasicMaterial({ color: new THREE.Color(accent), transparent: true, opacity: 0.5, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
@@ -191,6 +216,13 @@ class Duelist {
     this.aura.position.y = 0.045;
     this.group.add(this.aura);
     this.auraColor = accent;
+    this.shield = new THREE.Mesh(
+      new THREE.SphereGeometry(0.62, 16, 10),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(accent), transparent: true, opacity: 0.12, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    this.shield.position.y = 1.25;
+    this.shield.visible = false;
+    this.group.add(this.shield);
     scene.add(this.group);
   }
 
@@ -223,6 +255,11 @@ class Duelist {
       this.walk += dt * 2;
     }
     this.blocking = !!(k && keys.has(k.block));
+    this.shield.visible = this.blocking;
+    if (this.blocking) {
+      this.shield.scale.setScalar(1 + Math.sin(this.walk * 2.2) * 0.035);
+      this.shield.material.opacity = 0.1 + Math.sin(this.walk * 2.4) * 0.025;
+    }
     const r = Math.hypot(this.x, this.z);
     if (r > 7.4) {
       this.x = (this.x / r) * 7.4;
@@ -356,7 +393,7 @@ export class Duel {
     top.position.set(0, 7, 0);
     this.scene.add(top);
     this.p1 = new Duelist(this.scene, { name: '沈屿', color: '#477985', accent: '#e6c27c', x: 0, z: 3.2, facing: 0 });
-    this.p2 = new Duelist(this.scene, { name: '潮斗者', color: '#8a4850', accent: '#ff9c6e', x: 0, z: -3.2, facing: 0 });
+    this.p2 = new Duelist(this.scene, { name: this.ai ? '潮斗者 AI' : '潮斗者', color: '#8a4850', accent: '#ff9c6e', x: 0, z: -3.2, facing: 0 });
     this.effects = [];
     this.p1.keys = P1;
     this.p2.keys = P2;
@@ -395,12 +432,30 @@ export class Duel {
     const p2Before = this.p2.hp;
     if (input.consumePressed(P1.attack)) this.p1.attack(this.p2);
     if (!this.ai && input.consumePressed(P2.attack)) this.p2.attack(this.p1);
-    if (this.p2.hp < p2Before) this.burst(this.p2.x, this.p2.z, '#e6c27c');
-    if (this.p1.hp < p1Before) this.burst(this.p1.x, this.p1.z, '#ff9c6e');
+    if (this.p2.hp < p2Before) {
+      this.burst(this.p2.x, this.p2.z, '#e6c27c');
+      this.shake = 0.2;
+    }
+    if (this.p1.hp < p1Before) {
+      this.burst(this.p1.x, this.p1.z, '#ff9c6e');
+      this.shake = 0.2;
+    }
     if (input.consumePressed(P1.dash)) this.p1.dash();
     if (!this.ai && input.consumePressed(P2.dash)) this.p2.dash();
     this.updateEffects(dt);
     this.game.ui.updateDuelHud(this, '');
+    if (this.shake > 0) {
+      this.shake *= Math.exp(-dt * 11);
+      this.camera.position.set(
+        (Math.random() - 0.5) * this.shake,
+        7.1 + (Math.random() - 0.5) * this.shake * 0.7,
+        10.4,
+      );
+      if (this.shake < 0.002) {
+        this.shake = 0;
+        this.camera.position.set(0, 7.1, 10.4);
+      }
+    }
     if (this.p1.hp <= 0 || this.p2.hp <= 0) {
       this.phase = 'result';
       this.result = this.p1.hp <= 0 ? '潮斗者获胜' : '沈屿获胜';
@@ -439,6 +494,15 @@ export class Duel {
     mesh.position.set(x, 1.0, z);
     this.scene.add(mesh);
     this.effects.push({ mesh, life: 0.36, max: 0.36 });
+    const slash = new THREE.Mesh(
+      new THREE.TorusGeometry(0.58, 0.045, 4, 18, Math.PI * 1.15),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    slash.position.set(x, 1.35, z);
+    slash.rotation.y = Math.random() * Math.PI;
+    slash.rotation.z = -0.7;
+    this.scene.add(slash);
+    this.effects.push({ mesh: slash, life: 0.28, max: 0.28 });
   }
 
   updateEffects(dt) {
